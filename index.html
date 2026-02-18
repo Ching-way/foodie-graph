@@ -1,0 +1,2185 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>食光機 - 食源索引 | Foodie-Graph & Source Index</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            transition: background-color 0.5s ease, color 0.5s ease;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        /* 導覽列 */
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: background-color 0.3s ease;
+        }
+
+        nav .nav-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 4rem;
+            padding: 0 1.5rem;
+        }
+
+        nav h1 {
+            font-family: 'Noto Serif TC', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: white;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .nav-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: transparent;
+            color: white;
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s;
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+
+        .nav-btn:hover, .nav-btn.active {
+            background-color: rgba(255,255,255,0.2);
+        }
+
+        .season-selector {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .season-btn {
+            width: 2.5rem;
+            height: 2.5rem;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 50%;
+            font-size: 1.25rem;
+            transition: all 0.2s;
+        }
+
+        .season-btn:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        .season-btn.active {
+            background-color: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+
+        /* 手機選單 */
+        .mobile-menu-btn {
+            display: none;
+            width: 2.5rem;
+            height: 2.5rem;
+            border: none;
+            background: transparent;
+            color: white;
+            cursor: pointer;
+        }
+
+        .mobile-menu {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 16rem;
+            z-index: 999;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            color: white;
+            padding: 1.5rem;
+        }
+
+        .mobile-menu.open {
+            transform: translateX(0);
+        }
+
+        .mobile-menu .close-btn {
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+            margin-bottom: 1.5rem;
+        }
+
+        .mobile-menu .menu-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            border: none;
+            background: transparent;
+            color: white;
+            cursor: pointer;
+            border-radius: 0.5rem;
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+
+        .mobile-menu .menu-item:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        /* 主要內容 */
+        main {
+            padding: 2rem 1rem;
+            min-height: calc(100vh - 10rem);
+        }
+
+        /* 卡片 */
+        .card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            transform: translateY(-2px);
+        }
+
+        /* 按鈕 */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-family: 'Noto Sans TC', sans-serif;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-primary {
+            color: white;
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid;
+        }
+
+        .btn-danger {
+            background: white;
+            border: 2px solid #ef4444;
+            color: #ef4444;
+        }
+
+        .btn-danger:hover {
+            background: #fef2f2;
+        }
+
+        /* 輸入框 */
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            font-family: 'Noto Sans TC', sans-serif;
+            transition: border-color 0.2s;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 6rem;
+        }
+
+        /* Grid 系統 */
+        .grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        /* 工具類 */
+        .mb-1 { margin-bottom: 0.25rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-3 { margin-bottom: 0.75rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .mb-8 { margin-bottom: 2rem; }
+
+        .mt-2 { margin-top: 0.5rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mt-6 { margin-top: 1.5rem; }
+
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-4 { gap: 1rem; }
+
+        .text-center { text-align: center; }
+        .font-bold { font-weight: 700; }
+        .text-sm { font-size: 0.875rem; }
+        .text-lg { font-size: 1.125rem; }
+        .text-xl { font-size: 1.25rem; }
+        .text-2xl { font-size: 1.5rem; }
+        .text-3xl { font-size: 1.875rem; }
+        .text-4xl { font-size: 2.25rem; }
+
+        .opacity-70 { opacity: 0.7; }
+        .hidden { display: none !important; }
+
+        /* 當季標籤 */
+        .seasonal-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0 1rem 0 0.75rem;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 500;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 1rem;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 1rem;
+            max-width: 64rem;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 1;
+            border-radius: 1rem 1rem 0 0;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .close-modal {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+        }
+
+        .close-modal:hover {
+            background: #f3f4f6;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 5rem;
+            padding: 1.5rem;
+            text-align: center;
+            font-size: 0.875rem;
+            border-top: 1px solid;
+        }
+
+        /* 響應式 */
+        @media (max-width: 768px) {
+            nav h1 {
+                font-size: 1.25rem;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .mobile-menu {
+                display: block;
+            }
+
+            .grid-2, .grid-3, .grid-4 {
+                grid-template-columns: 1fr;
+            }
+
+            @media (min-width: 640px) {
+                .grid-2 {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+            }
+        }
+
+        /* 標籤與篩選器 */
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            background: #f3f4f6;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+
+        .filter-btn.active {
+            color: white;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        /* 步驟編號 */
+        .step-number {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* 表單項目 */
+        .form-item {
+            padding: 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Icon placeholders */
+        .icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            display: inline-block;
+        }
+
+        /* 搜尋框 */
+        .search-wrapper {
+            position: relative;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.5;
+        }
+
+        .search-input {
+            padding-left: 2.5rem;
+        }
+
+        /* 展開/收合 */
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapsible-content.open {
+            max-height: 5000px;
+        }
+
+        /* 統計數字 */
+        .stat-box {
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            opacity: 0.7;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- 導覽列 -->
+    <nav id="navbar">
+        <div class="nav-content">
+            <div class="flex items-center gap-2">
+                <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+                    ☰
+                </button>
+                <h1>
+                    <span id="season-icon">🌱</span>
+                    食光機 - 食源索引
+                </h1>
+            </div>
+            
+            <div class="nav-links">
+                <button class="nav-btn active" onclick="setView('home')" data-view="home">首頁</button>
+                <button class="nav-btn" onclick="setView('ingredients')" data-view="ingredients">食材庫</button>
+                <button class="nav-btn" onclick="setView('recipes')" data-view="recipes">食譜庫</button>
+                <button class="nav-btn" onclick="setView('settings')" data-view="settings">⚙️</button>
+            </div>
+
+            <div class="season-selector">
+                <button class="season-btn active" onclick="setSeason('spring')" data-season="spring" title="春季">🌱</button>
+                <button class="season-btn" onclick="setSeason('summer')" data-season="summer" title="夏季">☀️</button>
+                <button class="season-btn" onclick="setSeason('autumn')" data-season="autumn" title="秋季">🍁</button>
+                <button class="season-btn" onclick="setSeason('winter')" data-season="winter" title="冬季">❄️</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 手機選單 -->
+    <div class="mobile-menu" id="mobileMenu">
+        <button class="close-btn" onclick="toggleMobileMenu()">✕</button>
+        <button class="menu-item" onclick="setView('home'); toggleMobileMenu();">首頁</button>
+        <button class="menu-item" onclick="setView('ingredients'); toggleMobileMenu();">食材庫</button>
+        <button class="menu-item" onclick="setView('recipes'); toggleMobileMenu();">食譜庫</button>
+        <button class="menu-item" onclick="setView('settings'); toggleMobileMenu();">設定</button>
+    </div>
+
+    <!-- 主要內容 -->
+    <main class="container">
+        <!-- 首頁 -->
+        <div id="home-view" class="view-content"></div>
+        
+        <!-- 食材庫 -->
+        <div id="ingredients-view" class="view-content hidden"></div>
+        
+        <!-- 食譜庫 -->
+        <div id="recipes-view" class="view-content hidden"></div>
+        
+        <!-- 設定 -->
+        <div id="settings-view" class="view-content hidden"></div>
+    </main>
+
+    <!-- Footer -->
+    <footer id="footer">
+        <p class="mb-2">Designed by Ching & Claude | v1.2.0</p>
+        <p class="text-sm opacity-70">© 2026 食光機 - 食源索引</p>
+    </footer>
+
+    <!-- Modal 容器 -->
+    <div id="modal-container"></div>
+
+    <script>
+        // 全域變數
+        const VERSION = 'v1.2.0';
+        const CATEGORIES = ['禽肉類', '海鮮類', '蛋豆類', '蔬菜類', '水果類', '飲品類', '澱粉主食類', '香料調味品類'];
+        const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+        
+        // 食材單位
+        const INGREDIENT_UNITS = [
+            '個 / 顆 / 隻 (pcs.)',
+            '根 / 條 / 支 (stalk/strip)',
+            '片 (slice)',
+            '瓣 (clove)',
+            '把 (bunch/handful)',
+            '塊 (block/chunk)',
+            '袋 / 包 (pack/bag)',
+            '其他'
+        ];
+        
+        // 調味料單位
+        const SEASONING_UNITS = [
+            '公斤 (kg)',
+            '公克 (g)',
+            '台斤 (catty)',
+            '毫升 (ml)',
+            '公升 (L)',
+            '大匙 (tbsp/T.) ≈15ml',
+            '小匙 (tsp/t.) ≈5ml',
+            '量杯 (cup) ≈240ml',
+            '滴 (drop)',
+            '適量 (as needed)',
+            '些許 (pinch)',
+            '其他'
+        ];
+
+        const THEMES = {
+            spring: {
+                name: '春季 Spring',
+                icon: '🌱',
+                primary: '#88C057',
+                background: '#F0F7E6',
+                secondary: '#E9D36F',
+                text: '#3B4536',
+                months: [3, 4, 5]
+            },
+            summer: {
+                name: '夏季 Summer',
+                icon: '☀️',
+                primary: '#FF7F50',
+                background: '#F0F8FF',
+                secondary: '#FFD700',
+                text: '#2C3E50',
+                months: [6, 7, 8]
+            },
+            autumn: {
+                name: '秋季 Autumn',
+                icon: '🍁',
+                primary: '#D2691E',
+                background: '#FAF3E0',
+                secondary: '#A0522D',
+                text: '#4A3B2A',
+                months: [9, 10, 11]
+            },
+            winter: {
+                name: '冬季 Winter',
+                icon: '❄️',
+                primary: '#5F9EA0',
+                background: '#F5F7FA',
+                secondary: '#CD5C5C',
+                text: '#2F4F4F',
+                months: [12, 1, 2]
+            }
+        };
+
+        // 狀態管理
+        let state = {
+            currentSeason: 'spring',
+            currentView: 'home',
+            ingredients: [],
+            recipes: [],
+            searchTerm: '',
+            selectedMonth: null,
+            selectedCategory: null,
+            shareCode: null
+        };
+
+        // 初始化
+        function init() {
+            loadData();
+            const currentMonth = new Date().getMonth() + 1;
+            state.currentSeason = getSeasonByMonth(currentMonth);
+            setSeason(state.currentSeason);
+            renderCurrentView();
+        }
+
+        // 根據月份判斷季節
+        function getSeasonByMonth(month) {
+            if ([3, 4, 5].includes(month)) return 'spring';
+            if ([6, 7, 8].includes(month)) return 'summer';
+            if ([9, 10, 11].includes(month)) return 'autumn';
+            return 'winter';
+        }
+
+        // 載入資料
+        function loadData() {
+            const savedIngredients = localStorage.getItem('foodie-ingredients');
+            const savedRecipes = localStorage.getItem('foodie-recipes');
+            const savedShareCode = localStorage.getItem('foodie-share-code');
+            
+            if (savedIngredients) state.ingredients = JSON.parse(savedIngredients);
+            if (savedRecipes) state.recipes = JSON.parse(savedRecipes);
+            if (savedShareCode) state.shareCode = savedShareCode;
+        }
+
+        // 儲存資料
+        function saveData() {
+            localStorage.setItem('foodie-ingredients', JSON.stringify(state.ingredients));
+            localStorage.setItem('foodie-recipes', JSON.stringify(state.recipes));
+        }
+
+        // 設定季節主題
+        function setSeason(season) {
+            state.currentSeason = season;
+            const theme = THEMES[season];
+            
+            document.body.style.backgroundColor = theme.background;
+            document.body.style.color = theme.text;
+            document.getElementById('navbar').style.backgroundColor = theme.primary + 'E6';
+            document.getElementById('season-icon').textContent = theme.icon;
+            document.getElementById('mobileMenu').style.backgroundColor = theme.primary;
+            document.getElementById('footer').style.borderColor = theme.primary + '30';
+            
+            document.documentElement.style.setProperty('--primary-color', theme.primary);
+            document.documentElement.style.setProperty('--secondary-color', theme.secondary);
+            
+            document.querySelectorAll('.season-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.season === season);
+            });
+            
+            renderCurrentView();
+        }
+
+        // 切換視圖
+        function setView(view) {
+            state.currentView = view;
+            state.searchTerm = '';
+            state.selectedMonth = null;
+            state.selectedCategory = null;
+            
+            document.querySelectorAll('.view-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`${view}-view`).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === view);
+            });
+            
+            renderCurrentView();
+        }
+
+        // 渲染當前視圖
+        function renderCurrentView() {
+            switch(state.currentView) {
+                case 'home':
+                    renderHomeView();
+                    break;
+                case 'ingredients':
+                    renderIngredientsView();
+                    break;
+                case 'recipes':
+                    renderRecipesView();
+                    break;
+                case 'settings':
+                    renderSettingsView();
+                    break;
+            }
+        }
+
+        // 渲染首頁
+        function renderHomeView() {
+            const theme = THEMES[state.currentSeason];
+            const currentMonth = new Date().getMonth() + 1;
+            
+            // 根據當前選擇的季節篩選食材（而非當前月份）
+            const seasonMonths = THEMES[state.currentSeason].months;
+            const seasonalIngredients = state.ingredients.filter(ing => 
+                ing.seasons.some(month => seasonMonths.includes(month))
+            );
+            
+            // 篩選包含當季食材的食譜
+            const seasonalRecipes = state.recipes.filter(recipe => {
+                return recipe.ingredients.some(ing => {
+                    const matchedIngredient = state.ingredients.find(i => 
+                        i.name.toLowerCase() === ing.name.toLowerCase()
+                    );
+                    return matchedIngredient && matchedIngredient.seasons.some(m => seasonMonths.includes(m));
+                });
+            });
+
+            const html = `
+                <div style="margin-top: 2rem;">
+                    <!-- 歡迎卡片 -->
+                    <div class="card text-center mb-8">
+                        <h2 style="font-family: 'Noto Serif TC', serif; font-size: 2.25rem; color: ${theme.primary}; margin-bottom: 1rem;">
+                            ${theme.name} ${theme.icon}
+                        </h2>
+                        <p class="text-lg mb-6">歡迎來到您的專屬食材與食譜資料庫</p>
+                        <div class="flex justify-between gap-4" style="max-width: 36rem; margin: 0 auto; flex-wrap: wrap;">
+                            <div class="stat-box">
+                                <div class="stat-number" style="color: ${theme.primary}">${state.ingredients.length}</div>
+                                <div class="stat-label">食材總數</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number" style="color: ${theme.primary}">${state.recipes.length}</div>
+                                <div class="stat-label">食譜總數</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number" style="color: ${theme.secondary}">${seasonalIngredients.length}</div>
+                                <div class="stat-label">${theme.name.split(' ')[0]}食材</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number" style="color: ${theme.secondary}">${seasonalRecipes.length}</div>
+                                <div class="stat-label">${theme.name.split(' ')[0]}食譜</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${seasonalIngredients.length > 0 ? `
+                    <!-- 當季推薦 -->
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-bold mb-4 flex items-center gap-2" style="font-family: 'Noto Serif TC', serif;">
+                            <span>🌿</span>
+                            ${theme.name.split(' ')[0]}食材推薦
+                        </h3>
+                        <div class="grid grid-3">
+                            ${seasonalIngredients.slice(0, 6).map(ing => `
+                                <div class="card" style="position: relative;">
+                                    <div class="seasonal-badge" style="background-color: ${theme.secondary};">
+                                        當季
+                                    </div>
+                                    <h4 class="font-bold text-lg mb-2" style="padding-right: 3rem;">${ing.name}</h4>
+                                    <p class="text-sm opacity-70">${ing.category}</p>
+                                    ${ing.nutrition || ing.cooking || ing.selection ? `
+                                        <p class="text-sm mt-2" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                            ${ing.nutrition || ing.cooking || ing.selection}
+                                        </p>
+                                    ` : ing.notes ? `
+                                        <p class="text-sm mt-2" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${ing.notes}</p>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${seasonalRecipes.length > 0 ? `
+                    <!-- 當季食譜推薦 -->
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-bold mb-4 flex items-center gap-2" style="font-family: 'Noto Serif TC', serif;">
+                            <span>📖</span>
+                            ${theme.name.split(' ')[0]}食譜推薦
+                        </h3>
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            ${seasonalRecipes.slice(0, 3).map(recipe => `
+                                <div class="card" style="border-left: 4px solid ${theme.secondary}; cursor: pointer;" 
+                                     onclick="setView('recipes'); setTimeout(() => { const recipeCard = document.querySelector('[onclick*=toggleRecipe\\\\(${recipe.id}\\\\)]'); if(recipeCard) { recipeCard.click(); recipeCard.scrollIntoView({behavior: 'smooth', block: 'center'}); } }, 100);">
+                                    <h4 class="font-bold text-lg mb-1">${recipe.name}</h4>
+                                    <p class="text-sm opacity-70">
+                                        ${recipe.servings || 1} 人份 · ${recipe.ingredients.length} 種食材
+                                    </p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <!-- 快速操作 -->
+                    <div class="grid grid-2">
+                        <button class="card" onclick="openIngredientForm()" style="border-left: 4px solid ${theme.primary}; cursor: pointer; text-align: center; padding: 2rem;">
+                            <div style="font-size: 2rem; margin-bottom: 0.75rem;">➕</div>
+                            <h3 class="font-bold text-xl">新增食材</h3>
+                        </button>
+                        <button class="card" onclick="openRecipeForm()" style="border-left: 4px solid ${theme.secondary}; cursor: pointer; text-align: center; padding: 2rem;">
+                            <div style="font-size: 2rem; margin-bottom: 0.75rem;">➕</div>
+                            <h3 class="font-bold text-xl">新增食譜</h3>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('home-view').innerHTML = html;
+        }
+
+        // 渲染食材庫
+        function renderIngredientsView() {
+            const theme = THEMES[state.currentSeason];
+            const currentMonth = new Date().getMonth() + 1;
+            
+            // 篩選食材（支援全文搜尋）
+            const filteredIngredients = state.ingredients.filter(ing => {
+                const searchLower = state.searchTerm.toLowerCase();
+                const matchSearch = !state.searchTerm || 
+                    ing.name.toLowerCase().includes(searchLower) ||
+                    ing.category.toLowerCase().includes(searchLower) ||
+                    (ing.nutrition && ing.nutrition.toLowerCase().includes(searchLower)) ||
+                    (ing.cooking && ing.cooking.toLowerCase().includes(searchLower)) ||
+                    (ing.selection && ing.selection.toLowerCase().includes(searchLower)) ||
+                    (ing.notes && ing.notes.toLowerCase().includes(searchLower));
+                
+                const matchMonth = !state.selectedMonth || ing.seasons.includes(state.selectedMonth);
+                const matchCategory = !state.selectedCategory || ing.category === state.selectedCategory;
+                return matchSearch && matchMonth && matchCategory;
+            });
+
+            const html = `
+                <div style="margin-top: 2rem;">
+                    <!-- 標題 -->
+                    <div class="flex justify-between items-center mb-6" style="flex-wrap: wrap; gap: 1rem;">
+                        <h2 class="text-3xl font-bold" style="font-family: 'Noto Serif TC', serif;">
+                            食材庫 (${filteredIngredients.length})
+                        </h2>
+                        <button class="btn btn-primary" onclick="openIngredientForm()" style="background-color: ${theme.primary};">
+                            ➕ 新增食材
+                        </button>
+                    </div>
+
+                    <!-- 搜尋與篩選 -->
+                    <div class="card mb-6">
+                        <!-- 文字搜尋 -->
+                        <div class="search-wrapper mb-4">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" class="search-input" placeholder="搜尋食材名稱..." 
+                                   value="${state.searchTerm}" oninput="handleSearch(this.value)">
+                        </div>
+
+                        <!-- 月份篩選 -->
+                        <div class="mb-4">
+                            <label class="form-label">季節篩選</label>
+                            <div class="flex gap-2" style="flex-wrap: wrap;">
+                                <button class="filter-btn ${!state.selectedMonth ? 'active' : ''}" 
+                                        onclick="setMonthFilter(null)"
+                                        style="${!state.selectedMonth ? `background-color: ${theme.primary}; color: white;` : ''}">
+                                    全部
+                                </button>
+                                ${MONTHS.map((month, idx) => `
+                                    <button class="filter-btn ${state.selectedMonth === idx + 1 ? 'active' : ''}" 
+                                            onclick="setMonthFilter(${idx + 1})"
+                                            style="${state.selectedMonth === idx + 1 ? `background-color: ${theme.primary}; color: white;` : ''}">
+                                        ${month}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- 分類篩選 -->
+                        <div>
+                            <label class="form-label">分類篩選</label>
+                            <div class="flex gap-2" style="flex-wrap: wrap;">
+                                <button class="filter-btn ${!state.selectedCategory ? 'active' : ''}" 
+                                        onclick="setCategoryFilter(null)"
+                                        style="${!state.selectedCategory ? `background-color: ${theme.primary}; color: white;` : ''}">
+                                    全部
+                                </button>
+                                ${CATEGORIES.map(cat => `
+                                    <button class="filter-btn ${state.selectedCategory === cat ? 'active' : ''}" 
+                                            onclick="setCategoryFilter('${cat}')"
+                                            style="${state.selectedCategory === cat ? `background-color: ${theme.primary}; color: white;` : ''}">
+                                        ${cat}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 食材列表 -->
+                    ${filteredIngredients.length === 0 ? `
+                        <div class="text-center" style="padding: 5rem 0; opacity: 0.5;">
+                            <p class="text-lg">尚無食材，開始新增您的第一個食材吧！</p>
+                        </div>
+                    ` : `
+                        <div class="grid grid-3">
+                            ${filteredIngredients.map(ing => renderIngredientCard(ing, theme, currentMonth)).join('')}
+                        </div>
+                    `}
+                </div>
+            `;
+
+            document.getElementById('ingredients-view').innerHTML = html;
+        }
+
+        // 渲染食材卡片
+        function renderIngredientCard(ingredient, theme, currentMonth) {
+            const isInSeason = ingredient.seasons.includes(currentMonth);
+            
+            return `
+                <div class="card" style="position: relative;">
+                    ${isInSeason ? `
+                        <div class="seasonal-badge" style="background-color: ${theme.secondary};">
+                            ${theme.icon} 當季
+                        </div>
+                    ` : ''}
+                    
+                    <h3 class="font-bold text-xl mb-2" style="padding-right: ${isInSeason ? '4rem' : '0'};">${ingredient.name}</h3>
+                    
+                    <div style="margin-bottom: 0.5rem;">
+                        <span class="tag" style="background-color: ${theme.primary}20; color: ${theme.primary};">
+                            ${ingredient.category}
+                        </span>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 mb-2" style="flex-wrap: wrap;">
+                        <span class="text-sm opacity-70">盛產季節：</span>
+                        ${ingredient.seasons.sort((a, b) => a - b).map(m => `
+                            <span class="tag" style="background-color: ${m === currentMonth ? theme.secondary + '30' : '#f0f0f0'}; 
+                                                      color: ${m === currentMonth ? theme.secondary : theme.text};">
+                                ${m}月
+                            </span>
+                        `).join('')}
+                    </div>
+                    
+                    ${ingredient.nutrition || ingredient.cooking || ingredient.selection ? `
+                        <div class="mt-3" style="padding: 0.75rem; border-radius: 0.5rem; background-color: ${theme.background};">
+                            ${ingredient.nutrition ? `
+                                <div class="${ingredient.cooking || ingredient.selection ? 'mb-2' : ''}">
+                                    <div class="text-sm font-bold mb-1">🥗 營養來源</div>
+                                    <div class="text-sm">${ingredient.nutrition}</div>
+                                </div>
+                            ` : ''}
+                            ${ingredient.cooking ? `
+                                <div class="${ingredient.selection ? 'mb-2' : ''}">
+                                    <div class="text-sm font-bold mb-1">👨‍🍳 烹飪方式</div>
+                                    <div class="text-sm">${ingredient.cooking}</div>
+                                </div>
+                            ` : ''}
+                            ${ingredient.selection ? `
+                                <div>
+                                    <div class="text-sm font-bold mb-1">✨ 挑選技巧</div>
+                                    <div class="text-sm">${ingredient.selection}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ingredient.notes ? `
+                        <p class="text-sm mt-4" style="padding: 0.75rem; border-radius: 0.5rem; background-color: ${theme.background};">
+                            ${ingredient.notes}
+                        </p>
+                    ` : ''}
+                    
+                    <div class="flex gap-2 mt-4">
+                        <button class="btn btn-outline flex-1" onclick="openIngredientForm(${ingredient.id})" 
+                                style="border-color: ${theme.primary}; color: ${theme.primary};">
+                            ✏️ 編輯
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteIngredient(${ingredient.id})">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 渲染食譜庫
+        function renderRecipesView() {
+            const theme = THEMES[state.currentSeason];
+            
+            const filteredRecipes = state.recipes.filter(recipe => {
+                if (!state.searchTerm) return true;
+                
+                const searchLower = state.searchTerm.toLowerCase();
+                
+                // 搜尋食譜名稱
+                if (recipe.name.toLowerCase().includes(searchLower)) return true;
+                
+                // 搜尋食材
+                if (recipe.ingredients.some(ing => 
+                    ing.name.toLowerCase().includes(searchLower) ||
+                    (ing.brand && ing.brand.toLowerCase().includes(searchLower)) ||
+                    (ing.tips && ing.tips.toLowerCase().includes(searchLower))
+                )) return true;
+                
+                // 搜尋調味料
+                if (recipe.seasonings.some(s => 
+                    s.name.toLowerCase().includes(searchLower) ||
+                    (s.brand && s.brand.toLowerCase().includes(searchLower)) ||
+                    (s.tips && s.tips.toLowerCase().includes(searchLower))
+                )) return true;
+                
+                // 搜尋步驟
+                if (recipe.steps.some(step => 
+                    step.text.toLowerCase().includes(searchLower) ||
+                    (step.tips && step.tips.toLowerCase().includes(searchLower))
+                )) return true;
+                
+                return false;
+            });
+
+            const html = `
+                <div style="margin-top: 2rem;">
+                    <!-- 標題 -->
+                    <div class="flex justify-between items-center mb-6" style="flex-wrap: wrap; gap: 1rem;">
+                        <h2 class="text-3xl font-bold" style="font-family: 'Noto Serif TC', serif;">
+                            食譜庫 (${filteredRecipes.length})
+                        </h2>
+                        <button class="btn btn-primary" onclick="openRecipeForm()" style="background-color: ${theme.primary};">
+                            ➕ 新增食譜
+                        </button>
+                    </div>
+
+                    <!-- 搜尋 -->
+                    <div class="card mb-6">
+                        <div class="search-wrapper">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" class="search-input" placeholder="搜尋食譜名稱..." 
+                                   value="${state.searchTerm}" oninput="handleSearch(this.value)">
+                        </div>
+                    </div>
+
+                    <!-- 食譜列表 -->
+                    ${filteredRecipes.length === 0 ? `
+                        <div class="text-center" style="padding: 5rem 0; opacity: 0.5;">
+                            <p class="text-lg">尚無食譜，開始新增您的第一個食譜吧！</p>
+                        </div>
+                    ` : `
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            ${filteredRecipes.map(recipe => renderRecipeCard(recipe, theme)).join('')}
+                        </div>
+                    `}
+                </div>
+            `;
+
+            document.getElementById('recipes-view').innerHTML = html;
+        }
+
+        // 渲染食譜卡片
+        function renderRecipeCard(recipe, theme) {
+            return `
+                <div class="card" style="border-left: 4px solid ${theme.primary};">
+                    <div class="flex justify-between items-center" style="cursor: pointer;" onclick="toggleRecipe(${recipe.id})">
+                        <div style="flex: 1;">
+                            <h3 class="font-bold text-xl mb-1">${recipe.name}</h3>
+                            <p class="text-sm opacity-70">
+                                ${recipe.servings || 1} 人份 · ${recipe.ingredients.length} 種食材 · ${recipe.steps.length} 個步驟
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="event.stopPropagation(); exportRecipe(${recipe.id})" 
+                                    class="btn" style="padding: 0.5rem; background: transparent;" title="匯出食譜">
+                                📥
+                            </button>
+                            <span id="recipe-arrow-${recipe.id}">▼</span>
+                        </div>
+                    </div>
+
+                    <div id="recipe-content-${recipe.id}" class="collapsible-content" style="border-top: 1px solid ${theme.primary}20; margin-top: 1rem; padding-top: 1rem;">
+                        <!-- 食材 -->
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-3">🥘 食材</h4>
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                ${recipe.ingredients.map(ing => `
+                                    <div style="padding: 0.75rem; border-radius: 0.5rem; background-color: ${theme.background};">
+                                        <div class="flex justify-between items-start">
+                                            <span class="font-bold">${ing.name}</span>
+                                            <span class="text-sm" style="color: ${theme.primary};">
+                                                ${ing.amount} ${ing.unit === '其他' && ing.customUnit ? ing.customUnit : ing.unit}
+                                            </span>
+                                        </div>
+                                        ${ing.brand ? `<p class="text-sm opacity-70 mt-1">品牌：${ing.brand}</p>` : ''}
+                                        ${ing.tips ? `<p class="text-sm mt-2" style="padding: 0.5rem; border-radius: 0.375rem; background: white;">💡 ${ing.tips}</p>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- 調味料 -->
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-3">🧂 調味料</h4>
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                ${recipe.seasonings.map(s => `
+                                    <div style="padding: 0.75rem; border-radius: 0.5rem; background-color: ${theme.background};">
+                                        <div class="flex justify-between items-start">
+                                            <span class="font-bold">${s.name}</span>
+                                            <span class="text-sm" style="color: ${theme.secondary};">
+                                                ${s.amount} ${s.unit === '其他' && s.customUnit ? s.customUnit : s.unit}
+                                            </span>
+                                        </div>
+                                        ${s.brand ? `<p class="text-sm opacity-70 mt-1">品牌：${s.brand}</p>` : ''}
+                                        ${s.tips ? `<p class="text-sm mt-2" style="padding: 0.5rem; border-radius: 0.375rem; background: white;">💡 ${s.tips}</p>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- 步驟 -->
+                        <div class="mb-6">
+                            <h4 class="font-bold text-lg mb-3">👨‍🍳 料理步驟</h4>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                ${recipe.steps.map((step, idx) => `
+                                    <div style="padding: 1rem; border-radius: 0.5rem; background-color: ${theme.background};">
+                                        <div class="flex gap-3">
+                                            <div class="step-number" style="background-color: ${theme.primary};">
+                                                ${idx + 1}
+                                            </div>
+                                            <div style="flex: 1;">
+                                                <p class="mb-2">${step.text}</p>
+                                                ${step.tips ? `<p class="text-sm" style="padding: 0.5rem; border-radius: 0.375rem; background: white;">💡 ${step.tips}</p>` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- 操作按鈕 -->
+                        <div class="flex gap-3">
+                            <button class="btn btn-outline flex-1" onclick="openRecipeForm(${recipe.id})" 
+                                    style="border-color: ${theme.primary}; color: ${theme.primary};">
+                                ✏️ 編輯食譜
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteRecipe(${recipe.id})">
+                                🗑️ 刪除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 渲染設定頁面
+        function renderSettingsView() {
+            const theme = THEMES[state.currentSeason];
+
+            const html = `
+                <div style="margin-top: 2rem;">
+                    <h2 class="text-3xl font-bold mb-6" style="font-family: 'Noto Serif TC', serif;">設定</h2>
+
+                    <!-- 主題設定 -->
+                    <div class="card mb-6">
+                        <h3 class="font-bold text-xl mb-4">主題設定</h3>
+                        <div class="grid grid-4">
+                            ${Object.entries(THEMES).map(([key, t]) => `
+                                <button onclick="setSeason('${key}')" 
+                                        class="card" 
+                                        style="border: 2px solid ${state.currentSeason === key ? t.primary : '#e5e7eb'};
+                                               background-color: ${state.currentSeason === key ? t.background : 'white'};
+                                               text-align: center; padding: 1.5rem;
+                                               transform: ${state.currentSeason === key ? 'scale(1.05)' : 'scale(1)'};
+                                               cursor: pointer;">
+                                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">${t.icon}</div>
+                                    <div class="font-bold">${t.name}</div>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- 版本資訊 -->
+                    <div class="card mb-6">
+                        <h3 class="font-bold text-xl mb-4">版本資訊</h3>
+                        <div style="padding: 1rem; border-radius: 0.5rem; background-color: ${theme.background}; margin-bottom: 0.5rem;">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-lg" style="color: ${theme.primary};">v1.2.0</span>
+                                <span class="text-sm opacity-70">2026-02-10</span>
+                            </div>
+                            <p class="text-sm">新增功能：全年選項、季節智慧推薦、食材自動完成、進階全文搜尋、資料匯入/分享</p>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 0.5rem; background-color: ${theme.background}; margin-bottom: 0.5rem;">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-lg" style="color: ${theme.primary};">v1.1.0</span>
+                                <span class="text-sm opacity-70">2026-02-09</span>
+                            </div>
+                            <p class="text-sm">新增功能：食材備註分類（營養來源、烹飪方式、挑選技巧）、食譜人份調整、更新單位系統</p>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 0.5rem; background-color: ${theme.background};">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-lg" style="color: ${theme.primary};">v1.0.0</span>
+                                <span class="text-sm opacity-70">2026-02-08</span>
+                            </div>
+                            <p class="text-sm">初始版本發布：食材庫、食譜庫、四季主題、響應式設計</p>
+                        </div>
+                    </div>
+
+                    <!-- 資料管理 -->
+                    <div class="card mb-6">
+                        <h3 class="font-bold text-xl mb-4">資料管理</h3>
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <button class="btn btn-outline" onclick="exportAllData()" 
+                                    style="border-color: ${theme.primary}; color: ${theme.primary}; justify-content: center;">
+                                📥 匯出所有資料
+                            </button>
+                            <button class="btn btn-outline" onclick="document.getElementById('import-file').click()" 
+                                    style="border-color: ${theme.primary}; color: ${theme.primary}; justify-content: center;">
+                                📤 匯入資料
+                            </button>
+                            <input type="file" id="import-file" accept=".json" style="display: none;" onchange="importData(event)">
+                            <button class="btn btn-danger" onclick="clearAllData()" style="justify-content: center;">
+                                🗑️ 清空所有資料
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 共用與分享 -->
+                    <div class="card">
+                        <h3 class="font-bold text-xl mb-4">🔗 共用與分享</h3>
+                        <div class="mb-4">
+                            <label class="form-label">您的分享代碼</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="share-code" readonly 
+                                       value="${state.shareCode || '尚未生成'}"
+                                       style="flex: 1; background: #f9f9f9;">
+                                <button class="btn btn-outline" onclick="generateShareCode()" 
+                                        style="border-color: ${theme.primary}; color: ${theme.primary};">
+                                    ${state.shareCode ? '重新生成' : '生成代碼'}
+                                </button>
+                            </div>
+                            <p class="text-sm opacity-70 mt-2">
+                                將此代碼分享給家人或朋友，他們可以使用此代碼匯入您的食材庫和食譜庫
+                            </p>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label">匯入他人分享的資料</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="import-share-code" 
+                                       placeholder="輸入分享代碼"
+                                       style="flex: 1;">
+                                <button class="btn btn-outline" onclick="importFromShareCode()" 
+                                        style="border-color: ${theme.secondary}; color: ${theme.secondary};">
+                                    匯入
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="p-3 rounded" style="background-color: ${theme.background};">
+                            <p class="text-sm">
+                                <strong>💡 使用說明：</strong><br>
+                                1. 生成您的分享代碼後，可複製給家人使用<br>
+                                2. 他人使用您的代碼匯入後，可獲得相同的食材和食譜<br>
+                                3. 匯入不會覆蓋現有資料，而是合併新增
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('settings-view').innerHTML = html;
+        }
+
+        // === 互動功能 ===
+
+        // 切換手機選單
+        function toggleMobileMenu() {
+            document.getElementById('mobileMenu').classList.toggle('open');
+        }
+
+        // 搜尋
+        function handleSearch(term) {
+            state.searchTerm = term;
+            renderCurrentView();
+        }
+
+        // 月份篩選
+        function setMonthFilter(month) {
+            state.selectedMonth = month;
+            renderCurrentView();
+        }
+
+        // 分類篩選
+        function setCategoryFilter(category) {
+            state.selectedCategory = category;
+            renderCurrentView();
+        }
+
+        // 切換食譜展開/收合
+        function toggleRecipe(id) {
+            const content = document.getElementById(`recipe-content-${id}`);
+            const arrow = document.getElementById(`recipe-arrow-${id}`);
+            
+            if (content.classList.contains('open')) {
+                content.classList.remove('open');
+                arrow.textContent = '▼';
+            } else {
+                content.classList.add('open');
+                arrow.textContent = '▲';
+            }
+        }
+
+        // === 食材操作 ===
+
+        // 開啟食材表單
+        function openIngredientForm(id = null) {
+            const ingredient = id ? state.ingredients.find(i => i.id === id) : null;
+            const theme = THEMES[state.currentSeason];
+            
+            const formData = ingredient || {
+                name: '',
+                category: CATEGORIES[0],
+                seasons: [],
+                nutrition: '',
+                cooking: '',
+                selection: ''
+            };
+
+            const html = `
+                <div class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 class="text-2xl font-bold" style="font-family: 'Noto Serif TC', serif;">
+                                ${ingredient ? '編輯食材' : '新增食材'}
+                            </h3>
+                            <button class="close-modal" onclick="closeModal()">✕</button>
+                        </div>
+                        <div class="modal-body">
+                            <form onsubmit="saveIngredient(event, ${id})" id="ingredient-form">
+                                <div class="mb-4">
+                                    <label class="form-label">食材名稱 *</label>
+                                    <input type="text" name="name" value="${formData.name}" required 
+                                           placeholder="例如：綠花椰菜">
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="form-label">分類 *</label>
+                                    <select name="category">
+                                        ${CATEGORIES.map(cat => `
+                                            <option value="${cat}" ${formData.category === cat ? 'selected' : ''}>
+                                                ${cat}
+                                            </option>
+                                        `).join('')}
+                                    </select>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="form-label">盛產季節 * (可多選)</label>
+                                    <div class="mb-2">
+                                        <button type="button" class="btn btn-outline" onclick="toggleAllSeasons()" 
+                                                style="border-color: ${theme.secondary}; color: ${theme.secondary}; padding: 0.5rem 1rem;">
+                                            🗓️ 全年 (1~12月)
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-4">
+                                        ${MONTHS.map((month, idx) => `
+                                            <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; cursor: pointer;">
+                                                <input type="checkbox" name="seasons" value="${idx + 1}" class="season-checkbox"
+                                                       ${formData.seasons.includes(idx + 1) ? 'checked' : ''}>
+                                                <span>${month}</span>
+                                            </label>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <div class="mb-6">
+                                    <label class="form-label">備註資訊（選填）</label>
+                                    
+                                    <div class="mb-3">
+                                        <label class="text-sm font-bold mb-1" style="display: block;">🥗 營養來源</label>
+                                        <textarea name="nutrition" placeholder="例如：富含維生素C、膳食纖維、β-胡蘿蔔素" 
+                                                  style="height: 4rem;">${formData.nutrition || ''}</textarea>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="text-sm font-bold mb-1" style="display: block;">👨‍🍳 烹飪方式</label>
+                                        <textarea name="cooking" placeholder="例如：適合清炒、汆燙、蒸煮，避免長時間烹調以保留營養" 
+                                                  style="height: 4rem;">${formData.cooking || ''}</textarea>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="text-sm font-bold mb-1" style="display: block;">✨ 挑選技巧</label>
+                                        <textarea name="selection" placeholder="例如：挑選時注意花球緊實、顏色翠綠、無黃化或黑點" 
+                                                  style="height: 4rem;">${formData.selection || ''}</textarea>
+                                    </div>
+                                </div>
+
+                                <div class="flex gap-3">
+                                    <button type="button" class="btn flex-1" onclick="closeModal()" 
+                                            style="border: 2px solid #ccc; background: white;">
+                                        取消
+                                    </button>
+                                    <button type="submit" class="btn btn-primary flex-1" 
+                                            style="background-color: ${theme.primary};">
+                                        💾 儲存
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('modal-container').innerHTML = html;
+        }
+
+        // 儲存食材
+        function saveIngredient(event, id) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const formData = new FormData(form);
+            
+            const seasons = Array.from(form.querySelectorAll('input[name="seasons"]:checked'))
+                                 .map(cb => parseInt(cb.value));
+            
+            if (seasons.length === 0) {
+                alert('請選擇至少一個盛產季節');
+                return;
+            }
+
+            const ingredient = {
+                id: id || Date.now(),
+                name: formData.get('name'),
+                category: formData.get('category'),
+                seasons: seasons,
+                nutrition: formData.get('nutrition'),
+                cooking: formData.get('cooking'),
+                selection: formData.get('selection')
+            };
+
+            // 檢查重複
+            const existing = state.ingredients.find(i => 
+                i.name.toLowerCase() === ingredient.name.toLowerCase() && i.id !== ingredient.id
+            );
+            
+            if (existing && !confirm(`已存在「${ingredient.name}」，確定要建立新的食材嗎？`)) {
+                return;
+            }
+
+            if (id) {
+                state.ingredients = state.ingredients.map(i => i.id === id ? ingredient : i);
+            } else {
+                state.ingredients.push(ingredient);
+            }
+
+            saveData();
+            closeModal();
+            renderCurrentView();
+        }
+
+        // 刪除食材
+        function deleteIngredient(id) {
+            if (confirm('確定要刪除此食材嗎？')) {
+                state.ingredients = state.ingredients.filter(i => i.id !== id);
+                saveData();
+                renderCurrentView();
+            }
+        }
+
+        // === 食譜操作 ===
+
+        // 開啟食譜表單
+        function openRecipeForm(id = null) {
+            const recipe = id ? state.recipes.find(r => r.id === id) : null;
+            const theme = THEMES[state.currentSeason];
+            
+            const formData = recipe || {
+                name: '',
+                servings: 1,
+                ingredients: [{ name: '', amount: '', unit: INGREDIENT_UNITS[0], customUnit: '', brand: '', tips: '' }],
+                seasonings: [{ name: '', amount: '', unit: SEASONING_UNITS[0], customUnit: '', brand: '', tips: '' }],
+                steps: [{ text: '', tips: '' }]
+            };
+
+            const html = `
+                <div class="modal">
+                    <div class="modal-content" style="max-width: 64rem;">
+                        <div class="modal-header">
+                            <h3 class="text-2xl font-bold" style="font-family: 'Noto Serif TC', serif;">
+                                ${recipe ? '編輯食譜' : '新增食譜'}
+                            </h3>
+                            <button class="close-modal" onclick="closeModal()">✕</button>
+                        </div>
+                        <div class="modal-body">
+                            <form onsubmit="saveRecipe(event, ${id})" id="recipe-form">
+                                <div class="mb-4">
+                                    <label class="form-label">食譜名稱 *</label>
+                                    <input type="text" name="name" value="${formData.name}" required 
+                                           placeholder="例如：口水雞">
+                                </div>
+                                
+                                <div class="mb-6">
+                                    <label class="form-label">人份數 *</label>
+                                    <div class="flex items-center gap-3">
+                                        <input type="number" name="servings" value="${formData.servings}" required min="1" max="100"
+                                               style="width: 6rem;" id="servings-input" onchange="handleServingsChange(${id})">
+                                        <span class="text-sm opacity-70">人份</span>
+                                        ${recipe ? `
+                                            <button type="button" class="btn btn-outline text-sm" onclick="scaleRecipe(${recipe.servings})" 
+                                                    style="border-color: ${theme.secondary}; color: ${theme.secondary}; padding: 0.5rem 1rem;">
+                                                📊 依人份調整用量
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                    ${recipe ? `<p class="text-sm opacity-70 mt-2">原始人份：${recipe.servings} 人份</p>` : ''}
+                                </div>
+
+                                <!-- 食材區 -->
+                                <div class="mb-6">
+                                    <div class="flex justify-between items-center mb-3">
+                                        <h4 class="font-bold text-lg">🥘 食材</h4>
+                                        <button type="button" class="btn btn-primary" onclick="addFormItem('ingredients')" 
+                                                style="background-color: ${theme.primary}; padding: 0.5rem 1rem;">
+                                            ➕ 新增
+                                        </button>
+                                    </div>
+                                    <div id="ingredients-container">
+                                        ${formData.ingredients.map((ing, idx) => renderIngredientFormItem(ing, idx, theme)).join('')}
+                                    </div>
+                                </div>
+
+                                <!-- 調味料區 -->
+                                <div class="mb-6">
+                                    <div class="flex justify-between items-center mb-3">
+                                        <h4 class="font-bold text-lg">🧂 調味料</h4>
+                                        <button type="button" class="btn" onclick="addFormItem('seasonings')" 
+                                                style="background-color: ${theme.secondary}; color: white; padding: 0.5rem 1rem;">
+                                            ➕ 新增
+                                        </button>
+                                    </div>
+                                    <div id="seasonings-container">
+                                        ${formData.seasonings.map((s, idx) => renderSeasoningFormItem(s, idx, theme)).join('')}
+                                    </div>
+                                </div>
+
+                                <!-- 步驟區 -->
+                                <div class="mb-6">
+                                    <div class="flex justify-between items-center mb-3">
+                                        <h4 class="font-bold text-lg">👨‍🍳 料理步驟</h4>
+                                        <button type="button" class="btn btn-primary" onclick="addFormItem('steps')" 
+                                                style="background-color: ${theme.primary}; padding: 0.5rem 1rem;">
+                                            ➕ 新增
+                                        </button>
+                                    </div>
+                                    <div id="steps-container">
+                                        ${formData.steps.map((step, idx) => renderStepFormItem(step, idx, theme)).join('')}
+                                    </div>
+                                </div>
+
+                                <div class="flex gap-3">
+                                    <button type="button" class="btn flex-1" onclick="closeModal()" 
+                                            style="border: 2px solid #ccc; background: white;">
+                                        取消
+                                    </button>
+                                    <button type="submit" class="btn btn-primary flex-1" 
+                                            style="background-color: ${theme.primary};">
+                                        💾 儲存食譜
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('modal-container').innerHTML = html;
+        }
+
+        // 渲染食材表單項目
+        function renderIngredientFormItem(item, idx, theme) {
+            const showCustomUnit = item.unit === '其他' || (item.customUnit && !INGREDIENT_UNITS.includes(item.unit));
+            
+            return `
+                <div class="form-item" style="border-color: ${theme.primary}40;">
+                    <div class="grid grid-4 gap-2 mb-2">
+                        <div style="position: relative;">
+                            <input type="text" placeholder="品名 *" value="${item.name}" 
+                                   data-type="ingredients" data-idx="${idx}" data-field="name"
+                                   id="ingredient-name-${idx}"
+                                   onfocus="setupAutocomplete(this, 'ingredients')">
+                        </div>
+                        <input type="text" placeholder="用量 *" value="${item.amount}" 
+                               data-type="ingredients" data-idx="${idx}" data-field="amount"
+                               class="ingredient-amount">
+                        <select data-type="ingredients" data-idx="${idx}" data-field="unit" 
+                                onchange="toggleCustomUnit('ingredients', ${idx}, this.value)">
+                            ${INGREDIENT_UNITS.map(unit => `<option value="${unit}" ${item.unit === unit ? 'selected' : ''}>${unit}</option>`).join('')}
+                        </select>
+                        <input type="text" placeholder="品種/品牌" value="${item.brand || ''}" 
+                               data-type="ingredients" data-idx="${idx}" data-field="brand">
+                    </div>
+                    ${showCustomUnit || item.unit === '其他' ? `
+                        <div class="mb-2">
+                            <input type="text" placeholder="請輸入自定義單位" value="${item.customUnit || ''}" 
+                                   data-type="ingredients" data-idx="${idx}" data-field="customUnit"
+                                   id="custom-unit-ingredients-${idx}">
+                        </div>
+                    ` : ''}
+                    <div class="flex gap-2">
+                        <input type="text" placeholder="提示/Tips" value="${item.tips || ''}" style="flex: 1;"
+                               data-type="ingredients" data-idx="${idx}" data-field="tips">
+                        <button type="button" class="btn btn-danger" onclick="removeFormItem('ingredients', ${idx})">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 渲染調味料表單項目
+        function renderSeasoningFormItem(item, idx, theme) {
+            const showCustomUnit = item.unit === '其他' || (item.customUnit && !SEASONING_UNITS.includes(item.unit));
+            
+            return `
+                <div class="form-item" style="border-color: ${theme.secondary}40;">
+                    <div class="grid grid-4 gap-2 mb-2">
+                        <div style="position: relative;">
+                            <input type="text" placeholder="品名 *" value="${item.name}" 
+                                   data-type="seasonings" data-idx="${idx}" data-field="name"
+                                   id="seasoning-name-${idx}"
+                                   onfocus="setupAutocomplete(this, 'seasonings')">
+                        </div>
+                        <input type="text" placeholder="用量 *" value="${item.amount}" 
+                               data-type="seasonings" data-idx="${idx}" data-field="amount"
+                               class="seasoning-amount">
+                        <select data-type="seasonings" data-idx="${idx}" data-field="unit"
+                                onchange="toggleCustomUnit('seasonings', ${idx}, this.value)">
+                            ${SEASONING_UNITS.map(unit => `<option value="${unit}" ${item.unit === unit ? 'selected' : ''}>${unit}</option>`).join('')}
+                        </select>
+                        <input type="text" placeholder="品種/品牌" value="${item.brand || ''}" 
+                               data-type="seasonings" data-idx="${idx}" data-field="brand">
+                    </div>
+                    ${showCustomUnit || item.unit === '其他' ? `
+                        <div class="mb-2">
+                            <input type="text" placeholder="請輸入自定義單位" value="${item.customUnit || ''}" 
+                                   data-type="seasonings" data-idx="${idx}" data-field="customUnit"
+                                   id="custom-unit-seasonings-${idx}">
+                        </div>
+                    ` : ''}
+                    <div class="flex gap-2">
+                        <input type="text" placeholder="提示/Tips" value="${item.tips || ''}" style="flex: 1;"
+                               data-type="seasonings" data-idx="${idx}" data-field="tips">
+                        <button type="button" class="btn btn-danger" onclick="removeFormItem('seasonings', ${idx})">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 渲染步驟表單項目
+        function renderStepFormItem(item, idx, theme) {
+            return `
+                <div class="form-item" style="border-color: ${theme.primary}40;">
+                    <div class="flex gap-3 mb-2">
+                        <div class="step-number" style="background-color: ${theme.primary};">
+                            ${idx + 1}
+                        </div>
+                        <textarea placeholder="步驟說明 *" style="flex: 1; height: 6rem;" 
+                                  data-type="steps" data-idx="${idx}" data-field="text">${item.text}</textarea>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" placeholder="提示/Tips" value="${item.tips}" style="flex: 1;"
+                               data-type="steps" data-idx="${idx}" data-field="tips">
+                        <button type="button" class="btn btn-danger" onclick="removeFormItem('steps', ${idx})">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 切換全年選項
+        function toggleAllSeasons() {
+            const checkboxes = document.querySelectorAll('.season-checkbox');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            
+            checkboxes.forEach(cb => {
+                cb.checked = !allChecked;
+            });
+        }
+
+        // 自動完成功能
+        function setupAutocomplete(inputElement, type) {
+            let autocompleteList = null;
+            
+            inputElement.addEventListener('input', function(e) {
+                const value = this.value.toLowerCase();
+                closeAllLists();
+                
+                if (!value) return;
+                
+                // 從食材庫獲取匹配的食材
+                const matches = state.ingredients
+                    .filter(ing => ing.name.toLowerCase().includes(value))
+                    .slice(0, 5);
+                
+                if (matches.length === 0) return;
+                
+                // 創建自動完成列表
+                autocompleteList = document.createElement('div');
+                autocompleteList.setAttribute('class', 'autocomplete-items');
+                autocompleteList.style.cssText = `
+                    position: absolute;
+                    border: 1px solid #d4d4d4;
+                    border-top: none;
+                    z-index: 99;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    background: white;
+                    max-height: 200px;
+                    overflow-y: auto;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                    border-radius: 0 0 0.5rem 0.5rem;
+                `;
+                
+                matches.forEach(ing => {
+                    const item = document.createElement('div');
+                    item.style.cssText = `
+                        padding: 0.75rem;
+                        cursor: pointer;
+                        border-bottom: 1px solid #f0f0f0;
+                    `;
+                    item.innerHTML = `
+                        <div style="font-weight: 500;">${ing.name}</div>
+                        <div style="font-size: 0.75rem; opacity: 0.7;">${ing.category}</div>
+                    `;
+                    
+                    item.addEventListener('mouseenter', function() {
+                        this.style.backgroundColor = '#f3f4f6';
+                    });
+                    item.addEventListener('mouseleave', function() {
+                        this.style.backgroundColor = 'white';
+                    });
+                    
+                    item.addEventListener('click', function() {
+                        inputElement.value = ing.name;
+                        closeAllLists();
+                    });
+                    
+                    autocompleteList.appendChild(item);
+                });
+                
+                inputElement.parentNode.style.position = 'relative';
+                inputElement.parentNode.appendChild(autocompleteList);
+            });
+            
+            function closeAllLists() {
+                const items = document.getElementsByClassName('autocomplete-items');
+                Array.from(items).forEach(item => item.remove());
+            }
+            
+            document.addEventListener('click', function(e) {
+                if (e.target !== inputElement) {
+                    closeAllLists();
+                }
+            });
+        }
+
+        // 切換自定義單位輸入框
+        function toggleCustomUnit(type, idx, value) {
+            const container = document.getElementById(`${type}-container`);
+            const item = container.children[idx];
+            const existingCustomInput = item.querySelector(`#custom-unit-${type}-${idx}`);
+            
+            if (value === '其他') {
+                if (!existingCustomInput) {
+                    const grid = item.querySelector('.grid');
+                    const customUnitHtml = `
+                        <div class="mb-2" style="grid-column: 1 / -1;">
+                            <input type="text" placeholder="請輸入自定義單位" 
+                                   data-type="${type}" data-idx="${idx}" data-field="customUnit"
+                                   id="custom-unit-${type}-${idx}">
+                        </div>
+                    `;
+                    grid.insertAdjacentHTML('afterend', customUnitHtml);
+                }
+            } else {
+                if (existingCustomInput && existingCustomInput.parentElement) {
+                    existingCustomInput.parentElement.remove();
+                }
+            }
+        }
+
+        // 人份調整
+        function scaleRecipe(originalServings) {
+            const newServings = parseFloat(document.getElementById('servings-input').value);
+            if (!newServings || newServings <= 0) {
+                alert('請輸入有效的人份數');
+                return;
+            }
+            
+            const scale = newServings / originalServings;
+            
+            if (!confirm(`確定要將所有用量從 ${originalServings} 人份調整為 ${newServings} 人份嗎？\n倍數：${scale.toFixed(2)}x`)) {
+                return;
+            }
+            
+            // 調整食材用量
+            document.querySelectorAll('.ingredient-amount').forEach(input => {
+                const currentAmount = parseFloat(input.value);
+                if (!isNaN(currentAmount)) {
+                    input.value = (currentAmount * scale).toFixed(2);
+                }
+            });
+            
+            // 調整調味料用量
+            document.querySelectorAll('.seasoning-amount').forEach(input => {
+                const currentAmount = parseFloat(input.value);
+                if (!isNaN(currentAmount)) {
+                    input.value = (currentAmount * scale).toFixed(2);
+                }
+            });
+            
+            alert('用量已調整完成！');
+        }
+
+        // 新增表單項目
+        function addFormItem(type) {
+            const theme = THEMES[state.currentSeason];
+            const container = document.getElementById(`${type}-container`);
+            const currentCount = container.children.length;
+            
+            let html = '';
+            if (type === 'ingredients') {
+                html = renderIngredientFormItem({ name: '', amount: '', unit: INGREDIENT_UNITS[0], customUnit: '', brand: '', tips: '' }, currentCount, theme);
+            } else if (type === 'seasonings') {
+                html = renderSeasoningFormItem({ name: '', amount: '', unit: SEASONING_UNITS[0], customUnit: '', brand: '', tips: '' }, currentCount, theme);
+            } else if (type === 'steps') {
+                html = renderStepFormItem({ text: '', tips: '' }, currentCount, theme);
+            }
+            
+            container.insertAdjacentHTML('beforeend', html);
+        }
+
+        // 移除表單項目
+        function removeFormItem(type, idx) {
+            const container = document.getElementById(`${type}-container`);
+            const items = container.children;
+            if (items.length > 1) {
+                items[idx].remove();
+                // 重新編號步驟
+                if (type === 'steps') {
+                    Array.from(container.children).forEach((item, newIdx) => {
+                        const number = item.querySelector('.step-number');
+                        if (number) number.textContent = newIdx + 1;
+                        // 更新 data-idx
+                        item.querySelectorAll('[data-idx]').forEach(el => {
+                            el.setAttribute('data-idx', newIdx);
+                        });
+                    });
+                }
+            }
+        }
+
+        // 儲存食譜
+        function saveRecipe(event, id) {
+            event.preventDefault();
+            
+            const form = event.target;
+            
+            // 收集食材
+            const ingredients = [];
+            document.querySelectorAll('[data-type="ingredients"]').forEach(el => {
+                const idx = parseInt(el.dataset.idx);
+                const field = el.dataset.field;
+                if (!ingredients[idx]) ingredients[idx] = {};
+                ingredients[idx][field] = el.value;
+            });
+            
+            // 收集調味料
+            const seasonings = [];
+            document.querySelectorAll('[data-type="seasonings"]').forEach(el => {
+                const idx = parseInt(el.dataset.idx);
+                const field = el.dataset.field;
+                if (!seasonings[idx]) seasonings[idx] = {};
+                seasonings[idx][field] = el.value;
+            });
+            
+            // 收集步驟
+            const steps = [];
+            document.querySelectorAll('[data-type="steps"]').forEach(el => {
+                const idx = parseInt(el.dataset.idx);
+                const field = el.dataset.field;
+                if (!steps[idx]) steps[idx] = {};
+                steps[idx][field] = el.value;
+            });
+
+            // 驗證
+            const validIngredients = ingredients.filter(i => i.name && i.amount && i.unit);
+            if (validIngredients.length === 0) {
+                alert('請至少新增一項食材（品名、用量、單位為必填）');
+                return;
+            }
+
+            const validSteps = steps.filter(s => s.text && s.text.trim());
+            if (validSteps.length === 0) {
+                alert('請至少新增一個料理步驟');
+                return;
+            }
+
+            const recipe = {
+                id: id || Date.now(),
+                name: form.name.value,
+                servings: parseInt(form.servings.value) || 1,
+                ingredients: validIngredients,
+                seasonings: seasonings.filter(s => s.name && s.amount && s.unit),
+                steps: validSteps
+            };
+
+            if (id) {
+                state.recipes = state.recipes.map(r => r.id === id ? recipe : r);
+            } else {
+                state.recipes.push(recipe);
+            }
+
+            saveData();
+            closeModal();
+            renderCurrentView();
+        }
+
+        // 刪除食譜
+        function deleteRecipe(id) {
+            if (confirm('確定要刪除此食譜嗎？')) {
+                state.recipes = state.recipes.filter(r => r.id !== id);
+                saveData();
+                renderCurrentView();
+            }
+        }
+
+        // 匯出食譜
+        function exportRecipe(id) {
+            const recipe = state.recipes.find(r => r.id === id);
+            if (!recipe) return;
+
+            let markdown = `# ${recipe.name}\n\n`;
+            markdown += `**人份數：** ${recipe.servings || 1} 人份\n\n`;
+            
+            markdown += `## 食材\n`;
+            recipe.ingredients.forEach(ing => {
+                const unit = ing.unit === '其他' && ing.customUnit ? ing.customUnit : ing.unit;
+                markdown += `- ${ing.name} ${ing.amount} ${unit}`;
+                if (ing.brand) markdown += ` (${ing.brand})`;
+                if (ing.tips) markdown += ` - ${ing.tips}`;
+                markdown += '\n';
+            });
+            
+            markdown += `\n## 調味料\n`;
+            recipe.seasonings.forEach(s => {
+                const unit = s.unit === '其他' && s.customUnit ? s.customUnit : s.unit;
+                markdown += `- ${s.name} ${s.amount} ${unit}`;
+                if (s.brand) markdown += ` (${s.brand})`;
+                if (s.tips) markdown += ` - ${s.tips}`;
+                markdown += '\n';
+            });
+            
+            markdown += `\n## 步驟\n`;
+            recipe.steps.forEach((step, idx) => {
+                markdown += `${idx + 1}. ${step.text}`;
+                if (step.tips) markdown += ` (💡 ${step.tips})`;
+                markdown += '\n';
+            });
+
+            navigator.clipboard.writeText(markdown).then(() => {
+                alert('食譜已複製到剪貼簿！');
+            });
+        }
+
+        // === 通用功能 ===
+
+        // 關閉 Modal
+        function closeModal() {
+            document.getElementById('modal-container').innerHTML = '';
+        }
+
+        // 匯出所有資料
+        function exportAllData() {
+            const data = {
+                ingredients: state.ingredients,
+                recipes: state.recipes
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `foodie-graph-backup-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // 清空所有資料
+        function clearAllData() {
+            if (confirm('確定要清空所有資料嗎？此操作無法復原！')) {
+                state.ingredients = [];
+                state.recipes = [];
+                saveData();
+                renderCurrentView();
+            }
+        }
+
+        // 匯入資料
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (!data.ingredients && !data.recipes) {
+                        alert('檔案格式錯誤！請選擇正確的匯出檔案。');
+                        return;
+                    }
+
+                    const mode = confirm('點選「確定」合併資料（保留現有資料）\n點選「取消」覆蓋資料（清空現有資料）');
+                    
+                    if (mode) {
+                        // 合併模式
+                        if (data.ingredients) {
+                            data.ingredients.forEach(ing => {
+                                if (!state.ingredients.find(i => i.id === ing.id)) {
+                                    state.ingredients.push(ing);
+                                }
+                            });
+                        }
+                        if (data.recipes) {
+                            data.recipes.forEach(recipe => {
+                                if (!state.recipes.find(r => r.id === recipe.id)) {
+                                    state.recipes.push(recipe);
+                                }
+                            });
+                        }
+                    } else {
+                        // 覆蓋模式
+                        if (data.ingredients) state.ingredients = data.ingredients;
+                        if (data.recipes) state.recipes = data.recipes;
+                    }
+
+                    saveData();
+                    renderCurrentView();
+                    alert('資料匯入成功！');
+                } catch (error) {
+                    alert('檔案讀取失敗：' + error.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // 清空 input，允許重複選擇同一檔案
+        }
+
+        // 生成分享代碼
+        function generateShareCode() {
+            const data = {
+                ingredients: state.ingredients,
+                recipes: state.recipes,
+                timestamp: Date.now()
+            };
+            
+            // 將資料轉換為 Base64
+            const jsonString = JSON.stringify(data);
+            const base64 = btoa(unescape(encodeURIComponent(jsonString)));
+            
+            // 生成簡短代碼（取前12位作為代碼）
+            const shortCode = base64.substring(0, 12).toUpperCase();
+            
+            // 儲存完整資料到 localStorage（使用代碼作為鍵）
+            localStorage.setItem(`foodie-share-${shortCode}`, base64);
+            
+            state.shareCode = shortCode;
+            localStorage.setItem('foodie-share-code', shortCode);
+            
+            renderCurrentView();
+            
+            // 複製到剪貼簿
+            navigator.clipboard.writeText(shortCode).then(() => {
+                alert(`分享代碼已生成並複製到剪貼簿：${shortCode}\n\n請將此代碼分享給您的家人或朋友！`);
+            });
+        }
+
+        // 從分享代碼匯入
+        function importFromShareCode() {
+            const code = document.getElementById('import-share-code').value.trim().toUpperCase();
+            
+            if (!code) {
+                alert('請輸入分享代碼！');
+                return;
+            }
+
+            // 從 localStorage 獲取資料
+            const base64Data = localStorage.getItem(`foodie-share-${code}`);
+            
+            if (!base64Data) {
+                alert('無效的分享代碼或資料已過期！\n\n注意：分享代碼僅在生成者的瀏覽器中有效。\n若要跨裝置分享，請使用「匯出/匯入資料」功能。');
+                return;
+            }
+
+            try {
+                const jsonString = decodeURIComponent(escape(atob(base64Data)));
+                const data = JSON.parse(jsonString);
+                
+                const mode = confirm(`找到分享資料：\n- 食材：${data.ingredients?.length || 0} 項\n- 食譜：${data.recipes?.length || 0} 項\n\n點選「確定」合併資料（保留現有）\n點選「取消」覆蓋資料（清空現有）`);
+                
+                if (mode) {
+                    // 合併模式
+                    if (data.ingredients) {
+                        data.ingredients.forEach(ing => {
+                            // 重新生成 ID 避免衝突
+                            const newIng = { ...ing, id: Date.now() + Math.random() };
+                            state.ingredients.push(newIng);
+                        });
+                    }
+                    if (data.recipes) {
+                        data.recipes.forEach(recipe => {
+                            const newRecipe = { ...recipe, id: Date.now() + Math.random() };
+                            state.recipes.push(newRecipe);
+                        });
+                    }
+                } else {
+                    // 覆蓋模式
+                    if (data.ingredients) state.ingredients = data.ingredients;
+                    if (data.recipes) state.recipes = data.recipes;
+                }
+
+                saveData();
+                renderCurrentView();
+                document.getElementById('import-share-code').value = '';
+                alert('資料匯入成功！');
+            } catch (error) {
+                alert('資料解析失敗：' + error.message);
+            }
+        }
+
+        // 頁面載入時初始化
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
