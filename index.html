@@ -498,6 +498,69 @@
             opacity: 0.7;
             margin-top: 0.25rem;
         }
+        
+        /* 搜尋高亮 */
+        .search-highlight {
+            background-color: #fef08a;
+            padding: 0.125rem 0.25rem;
+            border-radius: 0.25rem;
+            font-weight: 500;
+        }
+        
+        /* 列印樣式 */
+        @media print {
+            /* 隱藏不需要的元素 */
+            nav, footer, .mobile-menu, .btn, button, .modal, 
+            .nav-links, .season-selector, #mobile-menu-toggle {
+                display: none !important;
+            }
+            
+            /* 主容器 */
+            .container {
+                max-width: 100%;
+                padding: 0;
+                margin: 0;
+            }
+            
+            /* 卡片樣式 */
+            .card {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                margin-bottom: 1.5rem;
+                border: 2px solid #333;
+                box-shadow: none;
+            }
+            
+            /* 食譜卡片 */
+            .collapsible-content {
+                display: block !important;
+                max-height: none !important;
+            }
+            
+            /* 字體大小 */
+            body {
+                font-size: 12pt;
+                line-height: 1.5;
+                color: #000;
+                background: white;
+            }
+            
+            h1, h2, h3 {
+                page-break-after: avoid;
+            }
+            
+            /* 移除背景色 */
+            * {
+                background: white !important;
+            }
+            
+            /* 保留重要的背景色標記 */
+            .seasonal-badge {
+                background-color: #f3f4f6 !important;
+                border: 1px solid #333;
+            }
+        }
+        
     </style>
 </head>
 <body>
@@ -561,7 +624,7 @@
 
     <!-- Footer -->
     <footer id="footer">
-        <p class="mb-2">Designed by Ching & Claude | v1.3.1</p>
+        <p class="mb-2">Designed by Ching & Claude | v1.4.6</p>
         <p class="text-sm opacity-70">© 2026 食光機 - 食源索引</p>
     </footer>
 
@@ -570,24 +633,12 @@
 
     <script>
         // 全域變數
-        const VERSION = 'v1.3.1';
+        const VERSION = 'v1.4.6';
         const CATEGORIES = ['禽肉類', '海鮮類', '蛋豆類', '蔬菜類', '水果類', '飲品類', '澱粉主食類', '香料調味品類'];
         const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
         
-        // 食材單位
-        const INGREDIENT_UNITS = [
-            '個 / 顆 / 隻 (pcs.)',
-            '根 / 條 / 支 (stalk/strip)',
-            '片 (slice)',
-            '瓣 (clove)',
-            '把 (bunch/handful)',
-            '塊 (block/chunk)',
-            '袋 / 包 (pack/bag)',
-            '其他'
-        ];
-        
-        // 調味料單位
-        const SEASONING_UNITS = [
+        // 統一單位（食材和調味料使用相同單位）
+        const UNITS = [
             '公克 (g)',
             '公斤 (kg)',
             '台斤 (catty)',
@@ -596,6 +647,13 @@
             '大匙 (tbsp/T.) ≈15ml',
             '小匙 (tsp/t.) ≈5ml',
             '量杯 (cup) ≈240ml',
+            '個 / 顆 / 隻 (pcs.)',
+            '根 / 條 / 支 (stalk/strip)',
+            '片 (slice)',
+            '瓣 (clove)',
+            '把 (bunch/handful)',
+            '塊 (block/chunk)',
+            '袋 / 包 (pack/bag)',
             '滴 (drop)',
             '適量 (as needed)',
             '些許 (pinch)',
@@ -650,8 +708,27 @@
             searchTerm: '',
             selectedMonth: null,
             selectedCategory: null,
-            shareCode: null
+            shareCode: null,
+            // Google Sheets 同步設定
+            syncSettings: {
+                apiUrl: '',
+                enabled: false,
+                autoSync: false,
+                syncInterval: 30, // 分鐘
+                lastSync: 0,
+                deviceId: generateDeviceId()
+            }
         };
+
+        // 生成裝置 ID
+        function generateDeviceId() {
+            let deviceId = localStorage.getItem('foodie-device-id');
+            if (!deviceId) {
+                deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('foodie-device-id', deviceId);
+            }
+            return deviceId;
+        }
 
         // 初始化
         function init() {
@@ -660,6 +737,11 @@
             state.currentSeason = getSeasonByMonth(currentMonth);
             setSeason(state.currentSeason);
             renderCurrentView();
+            
+            // 啟動自動同步（如果已啟用）
+            if (state.syncSettings.enabled && state.syncSettings.autoSync) {
+                startAutoSync();
+            }
         }
 
         // 根據月份判斷季節
@@ -675,16 +757,50 @@
             const savedIngredients = localStorage.getItem('foodie-ingredients');
             const savedRecipes = localStorage.getItem('foodie-recipes');
             const savedShareCode = localStorage.getItem('foodie-share-code');
+            const savedSyncSettings = localStorage.getItem('foodie-sync-settings');
             
             if (savedIngredients) state.ingredients = JSON.parse(savedIngredients);
             if (savedRecipes) state.recipes = JSON.parse(savedRecipes);
             if (savedShareCode) state.shareCode = savedShareCode;
+            if (savedSyncSettings) {
+                state.syncSettings = { ...state.syncSettings, ...JSON.parse(savedSyncSettings) };
+            }
         }
 
         // 儲存資料
         function saveData() {
+            // 為每個項目加上更新時間戳和裝置 ID
+            const timestamp = Date.now();
+            state.ingredients.forEach(ing => {
+                if (!ing.updatedAt || ing.updatedAt < timestamp) {
+                    ing.updatedAt = timestamp;
+                    ing.deviceId = state.syncSettings.deviceId;
+                }
+            });
+            state.recipes.forEach(recipe => {
+                if (!recipe.updatedAt || recipe.updatedAt < timestamp) {
+                    recipe.updatedAt = timestamp;
+                    recipe.deviceId = state.syncSettings.deviceId;
+                }
+            });
+            
             localStorage.setItem('foodie-ingredients', JSON.stringify(state.ingredients));
             localStorage.setItem('foodie-recipes', JSON.stringify(state.recipes));
+            localStorage.setItem('foodie-sync-settings', JSON.stringify(state.syncSettings));
+            
+            // 如果啟用自動同步，觸發同步
+            if (state.syncSettings.enabled && state.syncSettings.autoSync) {
+                debounceSync();
+            }
+        }
+        
+        // 防抖同步（避免頻繁同步）
+        let syncTimer = null;
+        function debounceSync() {
+            if (syncTimer) clearTimeout(syncTimer);
+            syncTimer = setTimeout(() => {
+                syncToCloud();
+            }, 3000); // 3秒後同步
         }
 
         // 設定季節主題
@@ -711,10 +827,14 @@
 
         // 切換視圖
         function setView(view) {
+            // 只在切換到不同視圖時清空搜尋（不在同一視圖內清空）
+            if (state.currentView !== view) {
+                state.searchTerm = '';
+                state.selectedMonth = null;
+                state.selectedCategory = null;
+            }
+            
             state.currentView = view;
-            state.searchTerm = '';
-            state.selectedMonth = null;
-            state.selectedCategory = null;
             
             document.querySelectorAll('.view-content').forEach(el => el.classList.add('hidden'));
             document.getElementById(`${view}-view`).classList.remove('hidden');
@@ -890,19 +1010,38 @@
                         <h2 class="text-3xl font-bold" style="font-family: 'Noto Serif TC', serif;">
                             食材庫 (${filteredIngredients.length})
                         </h2>
-                        <button class="btn btn-primary" onclick="openIngredientForm()" style="background-color: ${theme.primary};">
-                            ➕ 新增食材
-                        </button>
+                        <div class="flex gap-2">
+                            <button class="btn btn-outline" onclick="window.print()" 
+                                    style="border-color: ${theme.secondary}; color: ${theme.secondary};">
+                                🖨️ 列印
+                            </button>
+                            <button class="btn btn-primary" onclick="openIngredientForm()" style="background-color: ${theme.primary};">
+                                ➕ 新增食材
+                            </button>
+                        </div>
                     </div>
 
                     <!-- 搜尋與篩選 -->
                     <div class="card mb-6">
                         <!-- 文字搜尋 -->
-                        <div class="search-wrapper mb-4">
+                        <div class="search-wrapper mb-4" style="position: relative;">
                             <span class="search-icon">🔍</span>
-                            <input type="text" class="search-input" placeholder="搜尋食材名稱..." 
-                                   value="${state.searchTerm}" oninput="handleSearch(this.value)">
+                            <input type="text" class="search-input" placeholder="搜尋食材（按 Enter 或點擊外面搜尋）" 
+                                   value="${state.searchTerm}" 
+                                   onkeypress="handleSearchKeypress(event)"
+                                   onblur="handleSearchBlur(event)"
+                                   style="padding-right: 2.5rem;">
+                            ${state.searchTerm ? `
+                                <button onclick="clearSearch()" 
+                                        style="position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); 
+                                               background: none; border: none; cursor: pointer; font-size: 1.25rem; 
+                                               opacity: 0.5; padding: 0.25rem;"
+                                        title="清除搜尋">
+                                    ✕
+                                </button>
+                            ` : ''}
                         </div>
+                        <div id="search-result-count" class="text-sm mb-3" style="color: ${theme.primary}; display: none;"></div>
 
                         <!-- 月份篩選 -->
                         <div class="mb-4">
@@ -964,7 +1103,13 @@
             const isInSeason = ingredient.seasons.includes(currentMonth);
             
             return `
-                <div class="card" style="position: relative;">
+                <div class="card ingredient-card" 
+                     style="position: relative;"
+                     data-name="${ingredient.name || ''}"
+                     data-category="${ingredient.category || ''}"
+                     data-nutrition="${ingredient.nutrition || ''}"
+                     data-cooking="${ingredient.cooking || ''}"
+                     data-selection="${ingredient.selection || ''}">
                     ${isInSeason ? `
                         <div class="seasonal-badge" style="background-color: ${theme.secondary};">
                             ${theme.icon} 當季
@@ -1071,18 +1216,37 @@
                         <h2 class="text-3xl font-bold" style="font-family: 'Noto Serif TC', serif;">
                             食譜庫 (${filteredRecipes.length})
                         </h2>
-                        <button class="btn btn-primary" onclick="openRecipeForm()" style="background-color: ${theme.primary};">
-                            ➕ 新增食譜
-                        </button>
+                        <div class="flex gap-2">
+                            <button class="btn btn-outline" onclick="window.print()" 
+                                    style="border-color: ${theme.secondary}; color: ${theme.secondary};">
+                                🖨️ 列印
+                            </button>
+                            <button class="btn btn-primary" onclick="openRecipeForm()" style="background-color: ${theme.primary};">
+                                ➕ 新增食譜
+                            </button>
+                        </div>
                     </div>
 
                     <!-- 搜尋 -->
                     <div class="card mb-6">
-                        <div class="search-wrapper">
+                        <div class="search-wrapper" style="position: relative;">
                             <span class="search-icon">🔍</span>
-                            <input type="text" class="search-input" placeholder="搜尋食譜名稱..." 
-                                   value="${state.searchTerm}" oninput="handleSearch(this.value)">
+                            <input type="text" class="search-input" placeholder="搜尋食譜（按 Enter 或點擊外面搜尋）" 
+                                   value="${state.searchTerm}" 
+                                   onkeypress="handleSearchKeypress(event)"
+                                   onblur="handleSearchBlur(event)"
+                                   style="padding-right: 2.5rem;">
+                            ${state.searchTerm ? `
+                                <button onclick="clearSearch()" 
+                                        style="position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); 
+                                               background: none; border: none; cursor: pointer; font-size: 1.25rem; 
+                                               opacity: 0.5; padding: 0.25rem;"
+                                        title="清除搜尋">
+                                    ✕
+                                </button>
+                            ` : ''}
                         </div>
+                        <div id="search-result-count" class="text-sm mt-2" style="color: ${theme.primary}; display: none;"></div>
                     </div>
 
                     <!-- 食譜列表 -->
@@ -1103,8 +1267,18 @@
 
         // 渲染食譜卡片
         function renderRecipeCard(recipe, theme) {
+            // 提取所有可搜尋的文字內容
+            const ingredientsText = recipe.ingredients.map(i => `${i.name} ${i.brand || ''} ${i.tips || ''}`).join(' ');
+            const seasoningsText = recipe.seasonings.map(s => `${s.name} ${s.brand || ''} ${s.tips || ''}`).join(' ');
+            const stepsText = recipe.steps.map(s => `${s.text} ${s.tips || ''}`).join(' ');
+            
             return `
-                <div class="card" style="border-left: 4px solid ${theme.primary};">
+                <div class="card recipe-card" 
+                     style="border-left: 4px solid ${theme.primary};"
+                     data-name="${recipe.name || ''}"
+                     data-ingredients="${ingredientsText}"
+                     data-seasonings="${seasoningsText}"
+                     data-steps="${stepsText}">
                     <div class="flex justify-between items-center" style="cursor: pointer;" onclick="toggleRecipe(${recipe.id})">
                         <div style="flex: 1;">
                             <h3 class="font-bold text-xl mb-1">${recipe.name}</h3>
@@ -1378,6 +1552,55 @@ Step4: 加水燉煮1.5小時</pre>
                         <h3 class="font-bold text-xl mb-4">版本資訊</h3>
                         <div style="padding: 1rem; border-radius: 0.5rem; background-color: ${theme.background}; margin-bottom: 0.5rem;">
                             <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-lg" style="color: ${theme.primary};">v1.4.6</span>
+                                <span class="text-sm opacity-70">2026-03-01</span>
+                            </div>
+                            <p class="text-sm">重要更新：添加 updatedAt/deviceId、些許適量不強制用量、詳細同步說明、JSON vs API 差異說明</p>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 0.5rem; background-color: ${theme.background}; margin-bottom: 0.5rem;">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-lg" style="color: ${theme.primary};">v1.4.5</span>
+                                <span class="text-sm opacity-70">2026-02-28</span>
+                            </div>
+                            <p class="text-sm">重要修正：解決 CORS 問題，改用 GET 請求同步資料</p>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 0.5rem; background-color: ${theme.background}; margin-bottom: 0.5rem;">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-lg" style="color: ${theme.primary};">v1.4.4</span>
+                                <span class="text-sm opacity-70">2026-02-17</span>
+                            </div>
+                            <p class="text-sm">修正：食譜庫搜尋功能、超簡化 Google Apps Script、改進多搜尋框處理</p>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 0.5rem; background-color: ${theme.background}; margin-bottom: 0.5rem;">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-lg" style="color: ${theme.primary};">v1.4.3</span>
+                                <span class="text-sm opacity-70">2026-02-16</span>
+                            </div>
+                            <p class="text-sm">緊急修正：完全重寫搜尋功能（延遲觸發避免輸入中斷）、修正 Google Apps Script 程式碼</p>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 0.5rem; background-color: ${theme.background}; margin-bottom: 0.5rem;">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-lg" style="color: ${theme.primary};">v1.4.2</span>
+                                <span class="text-sm opacity-70">2026-02-15</span>
+                            </div>
+                            <p class="text-sm">緊急修正：搜尋輸入中斷問題（防抖處理）、Google Sheets 同步錯誤處理改進</p>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 0.5rem; background-color: ${theme.background}; margin-bottom: 0.5rem;">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-lg" style="color: ${theme.primary};">v1.4.1</span>
+                                <span class="text-sm opacity-70">2026-02-14</span>
+                            </div>
+                            <p class="text-sm">修正：統一食材和調味料單位、修復搜尋功能、修正教學文件亂碼問題</p>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 0.5rem; background-color: ${theme.background}; margin-bottom: 0.5rem;">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-bold text-lg" style="color: ${theme.primary};">v1.4.0</span>
+                                <span class="text-sm opacity-70">2026-02-13</span>
+                            </div>
+                            <p class="text-sm">重大更新：Google Sheets 雲端同步、家人共享、版本衝突檢測、搜尋高亮、列印功能</p>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 0.5rem; background-color: ${theme.background}; margin-bottom: 0.5rem;">
+                            <div class="flex justify-between items-center mb-2">
                                 <span class="font-bold text-lg" style="color: ${theme.primary};">v1.3.1</span>
                                 <span class="text-sm opacity-70">2026-02-12</span>
                             </div>
@@ -1415,21 +1638,174 @@ Step4: 加水燉煮1.5小時</pre>
 
                     <!-- 資料管理 -->
                     <div class="card mb-6">
-                        <h3 class="font-bold text-xl mb-4">資料管理</h3>
+                        <h3 class="font-bold text-xl mb-4">📦 資料管理</h3>
+                        
+                        <div class="mb-4 p-3 rounded" style="background-color: ${theme.background};">
+                            <p class="text-sm mb-2"><strong>💡 功能說明</strong></p>
+                            <p class="text-sm opacity-70 mb-3">匯出/匯入功能可讓您備份資料或分享給朋友</p>
+                            
+                            <details class="text-sm">
+                                <summary class="cursor-pointer font-bold mb-2" style="color: ${theme.primary};">📥📤 匯出/匯入 vs 雲端同步</summary>
+                                <div class="opacity-70 pl-2 border-l-2" style="border-color: ${theme.primary};">
+                                    <p class="mb-2"><strong>📥 匯出所有資料：</strong></p>
+                                    <ul class="list-disc pl-4 mb-3">
+                                        <li>將所有食材和食譜儲存為 JSON 檔案</li>
+                                        <li>可用於本地備份（建議定期匯出）</li>
+                                        <li>可分享給朋友（傳送檔案）</li>
+                                        <li>轉移到新裝置時使用</li>
+                                        <li>完全離線，不需網路</li>
+                                    </ul>
+                                    
+                                    <p class="mb-2"><strong>📤 匯入資料：</strong></p>
+                                    <ul class="list-disc pl-4 mb-3">
+                                        <li>從 JSON 檔案載入資料</li>
+                                        <li><strong>會覆蓋現有的所有資料</strong></li>
+                                        <li>匯入前建議先匯出備份</li>
+                                        <li>適合還原舊版本資料</li>
+                                    </ul>
+                                    
+                                    <p class="mb-2"><strong>☁️ 與雲端同步的差異：</strong></p>
+                                    <table class="text-xs w-full mb-3">
+                                        <tr style="background-color: ${theme.background};">
+                                            <th class="p-1">功能</th>
+                                            <th class="p-1">雲端同步</th>
+                                            <th class="p-1">JSON 匯出入</th>
+                                        </tr>
+                                        <tr>
+                                            <td class="p-1">多裝置</td>
+                                            <td class="p-1">✅ 自動同步</td>
+                                            <td class="p-1">❌ 需手動傳檔</td>
+                                        </tr>
+                                        <tr style="background-color: ${theme.background};">
+                                            <td class="p-1">家人共享</td>
+                                            <td class="p-1">✅ 即時共享</td>
+                                            <td class="p-1">❌ 需傳檔案</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="p-1">離線使用</td>
+                                            <td class="p-1">⚠️ 需先同步</td>
+                                            <td class="p-1">✅ 完全離線</td>
+                                        </tr>
+                                        <tr style="background-color: ${theme.background};">
+                                            <td class="p-1">設定難度</td>
+                                            <td class="p-1">⚠️ 需設定 API</td>
+                                            <td class="p-1">✅ 超簡單</td>
+                                        </tr>
+                                    </table>
+                                    
+                                    <p class="mb-2"><strong>💡 建議使用方式：</strong></p>
+                                    <ul class="list-disc pl-4">
+                                        <li><strong>主要使用雲端同步</strong>：日常方便、自動備份</li>
+                                        <li><strong>定期匯出 JSON</strong>：每週或每月備份一次，雙重保險</li>
+                                        <li><strong>分享食譜</strong>：使用匯出功能，傳檔案給朋友</li>
+                                    </ul>
+                                </div>
+                            </details>
+                        </div>
+                        
                         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                             <button class="btn btn-outline" onclick="exportAllData()" 
                                     style="border-color: ${theme.primary}; color: ${theme.primary}; justify-content: center;">
-                                📥 匯出所有資料
+                                📥 匯出所有資料 (JSON)
                             </button>
                             <button class="btn btn-outline" onclick="document.getElementById('import-file').click()" 
                                     style="border-color: ${theme.primary}; color: ${theme.primary}; justify-content: center;">
-                                📤 匯入資料
+                                📤 匯入資料 (JSON)
                             </button>
                             <input type="file" id="import-file" accept=".json" style="display: none;" onchange="importData(event)">
                             <button class="btn btn-danger" onclick="clearAllData()" style="justify-content: center;">
                                 🗑️ 清空所有資料
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Google Sheets 同步 -->
+                    <div class="card mb-6">
+                        <h3 class="font-bold text-xl mb-4">☁️ Google Sheets 雲端同步</h3>
+                        
+                        <div class="mb-4 p-3 rounded" style="background-color: ${theme.background};">
+                            <p class="text-sm mb-2"><strong>💡 功能說明</strong></p>
+                            <p class="text-sm opacity-70 mb-3">連接 Google Sheets 後，您的食材和食譜將自動備份到雲端，並可與家人即時共享！</p>
+                            
+                            <details class="text-sm">
+                                <summary class="cursor-pointer font-bold mb-2" style="color: ${theme.primary};">🔄 同步機制說明</summary>
+                                <div class="opacity-70 pl-2 border-l-2" style="border-color: ${theme.primary};">
+                                    <p class="mb-2"><strong>同步流程：</strong></p>
+                                    <ol class="list-decimal pl-4 mb-3">
+                                        <li>從雲端拉取最新資料</li>
+                                        <li>與本地資料合併（雲端新增的會加入本地）</li>
+                                        <li>推送完整的本地資料到雲端</li>
+                                    </ol>
+                                    
+                                    <p class="mb-2"><strong>⚠️ 重要注意事項：</strong></p>
+                                    <ul class="list-disc pl-4 mb-3">
+                                        <li><strong>同步以本地資料為主</strong>：最後會用本地資料覆蓋雲端</li>
+                                        <li><strong>刪除操作</strong>：需在 Google Sheets 刪除該列後同步，或在所有裝置都刪除</li>
+                                        <li><strong>清空資料</strong>：需使用瀏覽器開發工具清除本地儲存後再同步</li>
+                                        <li><strong>多裝置使用</strong>：所有裝置使用相同的 API URL 即可共享資料</li>
+                                    </ul>
+                                    
+                                    <p class="mb-2"><strong>🔀 衝突處理：</strong></p>
+                                    <ul class="list-disc pl-4">
+                                        <li>如果多個裝置同時修改同一筆資料，系統會偵測衝突</li>
+                                        <li>詢問您要保留本地版本還是使用雲端版本</li>
+                                        <li>建議定期同步以減少衝突</li>
+                                    </ul>
+                                </div>
+                            </details>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label">API 連結（資料庫 ID）</label>
+                            <input type="text" id="sync-api-url" 
+                                   value="${state.syncSettings.apiUrl}"
+                                   placeholder="https://script.google.com/macros/s/YOUR_ID/exec"
+                                   style="width: 100%; font-size: 0.875rem;">
+                            <p class="text-sm opacity-70 mt-1">
+                                📖 <a href="#" onclick="showSyncTutorial(); return false;" 
+                                      style="color: ${theme.primary}; text-decoration: underline;">查看設定教學</a>
+                            </p>
+                        </div>
+                        
+                        <div class="mb-4 flex gap-2">
+                            <button class="btn btn-outline flex-1" onclick="testSyncConnection()" 
+                                    style="border-color: ${theme.secondary}; color: ${theme.secondary};">
+                                🔍 測試連線
+                            </button>
+                            <button class="btn btn-primary flex-1" onclick="syncToCloud()" 
+                                    style="background-color: ${theme.primary};"
+                                    ${state.syncSettings.enabled ? '' : 'disabled'}>
+                                ☁️ 立即同步
+                            </button>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="auto-sync-enabled" 
+                                       ${state.syncSettings.autoSync ? 'checked' : ''}
+                                       onchange="toggleAutoSync(this.checked)">
+                                <span>啟用自動同步</span>
+                            </label>
+                        </div>
+                        
+                        ${state.syncSettings.autoSync ? `
+                        <div class="mb-4">
+                            <label class="form-label">同步間隔</label>
+                            <select id="sync-interval" onchange="updateSyncInterval(this.value)">
+                                <option value="5" ${state.syncSettings.syncInterval === 5 ? 'selected' : ''}>每 5 分鐘</option>
+                                <option value="30" ${state.syncSettings.syncInterval === 30 ? 'selected' : ''}>每 30 分鐘</option>
+                                <option value="60" ${state.syncSettings.syncInterval === 60 ? 'selected' : ''}>每小時</option>
+                            </select>
+                        </div>
+                        ` : ''}
+                        
+                        <div id="sync-status" class="text-sm" style="display: none;"></div>
+                        
+                        ${state.syncSettings.lastSync ? `
+                        <div class="text-sm opacity-70 mt-3">
+                            上次同步：${new Date(state.syncSettings.lastSync).toLocaleString('zh-TW')}
+                        </div>
+                        ` : ''}
                     </div>
 
                     <!-- 共用與分享 -->
@@ -1486,9 +1862,55 @@ Step4: 加水燉煮1.5小時</pre>
             document.getElementById('mobileMenu').classList.toggle('open');
         }
 
-        // 搜尋
-        function handleSearch(term) {
-            state.searchTerm = term;
+        // 搜尋功能 - 完全重寫避免輸入中斷
+        
+        // 高亮搜尋關鍵字
+        function highlightSearchTerm(text, searchTerm) {
+            if (!searchTerm || !text) return text;
+            
+            const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            return text.replace(regex, '<span class="search-highlight">$1</span>');
+        }
+
+        // 執行搜尋
+        function executeSearch() {
+            // 從當前可見的搜尋框取得值
+            const visibleSearchInput = Array.from(document.querySelectorAll('.search-input'))
+                .find(input => input.offsetParent !== null); // 找到可見的搜尋框
+            
+            if (visibleSearchInput) {
+                state.searchTerm = visibleSearchInput.value.trim();
+            }
+            
+            console.log('執行搜尋:', state.searchTerm, '在視圖:', state.currentView);
+            renderCurrentView();
+        }
+        
+        // 按下 Enter 執行搜尋
+        function handleSearchKeypress(event) {
+            if (event.key === 'Enter') {
+                executeSearch();
+            }
+        }
+        
+        // 失去焦點時執行搜尋
+        function handleSearchBlur(event) {
+            const newValue = event.target.value.trim();
+            // 只有當值改變時才搜尋
+            if (newValue !== state.searchTerm) {
+                executeSearch();
+            }
+        }
+        
+        // 清除搜尋
+        function clearSearch() {
+            state.searchTerm = '';
+            // 清除當前可見的搜尋框
+            const visibleSearchInput = Array.from(document.querySelectorAll('.search-input'))
+                .find(input => input.offsetParent !== null);
+            if (visibleSearchInput) {
+                visibleSearchInput.value = '';
+            }
             renderCurrentView();
         }
 
@@ -1642,9 +2064,11 @@ Step4: 加水燉煮1.5小時</pre>
                 name: formData.get('name'),
                 category: formData.get('category'),
                 seasons: seasons,
-                nutrition: formData.get('nutrition'),
-                cooking: formData.get('cooking'),
-                selection: formData.get('selection')
+                nutrition: formData.get('nutrition') || '',
+                cooking: formData.get('cooking') || '',
+                selection: formData.get('selection') || '',
+                updatedAt: Date.now(),
+                deviceId: state.syncSettings.deviceId
             };
 
             // 檢查重複
@@ -1688,8 +2112,8 @@ Step4: 加水燉煮1.5小時</pre>
                 servings: 1,
                 difficulty: 0,
                 cookingTime: 0,
-                ingredients: [{ name: '', amount: '', unit: INGREDIENT_UNITS[0], customUnit: '', brand: '', tips: '' }],
-                seasonings: [{ name: '', amount: '', unit: SEASONING_UNITS[0], customUnit: '', brand: '', tips: '' }],
+                ingredients: [{ name: '', amount: '', unit: UNITS[0], customUnit: '', brand: '', tips: '' }],
+                seasonings: [{ name: '', amount: '', unit: UNITS[0], customUnit: '', brand: '', tips: '' }],
                 steps: [{ text: '', tips: '' }]
             };
             
@@ -1828,7 +2252,7 @@ Step4: 加水燉煮1.5小時</pre>
 
         // 渲染食材表單項目
         function renderIngredientFormItem(item, idx, theme) {
-            const showCustomUnit = item.unit === '其他' || (item.customUnit && !INGREDIENT_UNITS.includes(item.unit));
+            const showCustomUnit = item.unit === '其他' || (item.customUnit && !UNITS.includes(item.unit));
             
             return `
                 <div class="form-item" style="border-color: ${theme.primary}40;">
@@ -1844,7 +2268,7 @@ Step4: 加水燉煮1.5小時</pre>
                                class="ingredient-amount">
                         <select data-type="ingredients" data-idx="${idx}" data-field="unit" 
                                 onchange="toggleCustomUnit('ingredients', ${idx}, this.value)">
-                            ${INGREDIENT_UNITS.map(unit => `<option value="${unit}" ${item.unit === unit ? 'selected' : ''}>${unit}</option>`).join('')}
+                            ${UNITS.map(unit => `<option value="${unit}" ${item.unit === unit ? 'selected' : ''}>${unit}</option>`).join('')}
                         </select>
                         <input type="text" placeholder="品種/品牌" value="${item.brand || ''}" 
                                data-type="ingredients" data-idx="${idx}" data-field="brand">
@@ -1869,7 +2293,7 @@ Step4: 加水燉煮1.5小時</pre>
 
         // 渲染調味料表單項目
         function renderSeasoningFormItem(item, idx, theme) {
-            const showCustomUnit = item.unit === '其他' || (item.customUnit && !SEASONING_UNITS.includes(item.unit));
+            const showCustomUnit = item.unit === '其他' || (item.customUnit && !UNITS.includes(item.unit));
             
             return `
                 <div class="form-item" style="border-color: ${theme.secondary}40;">
@@ -1885,7 +2309,7 @@ Step4: 加水燉煮1.5小時</pre>
                                class="seasoning-amount">
                         <select data-type="seasonings" data-idx="${idx}" data-field="unit"
                                 onchange="toggleCustomUnit('seasonings', ${idx}, this.value)">
-                            ${SEASONING_UNITS.map(unit => `<option value="${unit}" ${item.unit === unit ? 'selected' : ''}>${unit}</option>`).join('')}
+                            ${UNITS.map(unit => `<option value="${unit}" ${item.unit === unit ? 'selected' : ''}>${unit}</option>`).join('')}
                         </select>
                         <input type="text" placeholder="品種/品牌" value="${item.brand || ''}" 
                                data-type="seasonings" data-idx="${idx}" data-field="brand">
@@ -2084,9 +2508,9 @@ Step4: 加水燉煮1.5小時</pre>
             
             let html = '';
             if (type === 'ingredients') {
-                html = renderIngredientFormItem({ name: '', amount: '', unit: INGREDIENT_UNITS[0], customUnit: '', brand: '', tips: '' }, currentCount, theme);
+                html = renderIngredientFormItem({ name: '', amount: '', unit: UNITS[0], customUnit: '', brand: '', tips: '' }, currentCount, theme);
             } else if (type === 'seasonings') {
-                html = renderSeasoningFormItem({ name: '', amount: '', unit: SEASONING_UNITS[0], customUnit: '', brand: '', tips: '' }, currentCount, theme);
+                html = renderSeasoningFormItem({ name: '', amount: '', unit: UNITS[0], customUnit: '', brand: '', tips: '' }, currentCount, theme);
             } else if (type === 'steps') {
                 html = renderStepFormItem({ text: '', tips: '' }, currentCount, theme);
             }
@@ -2147,10 +2571,17 @@ Step4: 加水燉煮1.5小時</pre>
                 steps[idx][field] = el.value;
             });
 
-            // 驗證
-            const validIngredients = ingredients.filter(i => i.name && i.amount && i.unit);
+            // 驗證食材（些許、適量不需要填用量）
+            const validIngredients = ingredients.filter(i => {
+                if (!i.name || !i.unit) return false;
+                // 些許和適量不需要數量
+                if (i.unit === '些許' || i.unit === '適量') return true;
+                // 其他單位需要數量
+                return i.amount && parseFloat(i.amount) > 0;
+            });
+            
             if (validIngredients.length === 0) {
-                alert('請至少新增一項食材（品名、用量、單位為必填）');
+                alert('請至少新增一項食材（品名、單位為必填，用量視單位而定）');
                 return;
             }
 
@@ -2160,6 +2591,15 @@ Step4: 加水燉煮1.5小時</pre>
                 return;
             }
 
+            // 驗證調味料（些許、適量不需要填用量）
+            const validSeasonings = seasonings.filter(s => {
+                if (!s.name || !s.unit) return false;
+                // 些許和適量不需要數量
+                if (s.unit === '些許' || s.unit === '適量') return true;
+                // 其他單位需要數量
+                return s.amount && parseFloat(s.amount) > 0;
+            });
+
             const recipe = {
                 id: id || Date.now(),
                 name: form.name.value,
@@ -2167,8 +2607,10 @@ Step4: 加水燉煮1.5小時</pre>
                 difficulty: parseInt(form.difficulty.value) || 0,
                 cookingTime: parseInt(form.cookingTime.value) || 0,
                 ingredients: validIngredients,
-                seasonings: seasonings.filter(s => s.name && s.amount && s.unit),
-                steps: validSteps
+                seasonings: validSeasonings,
+                steps: validSteps,
+                updatedAt: Date.now(),
+                deviceId: state.syncSettings.deviceId
             };
 
             if (id) {
@@ -2859,7 +3301,7 @@ Step4: 加水燉煮1.5小時</pre>
                 recipe.ingredients.push({ 
                     name: '', 
                     amount: '', 
-                    unit: INGREDIENT_UNITS[0], 
+                    unit: UNITS[0], 
                     customUnit: '', 
                     brand: '', 
                     tips: '' 
@@ -3170,10 +3612,10 @@ Step4: 加水燉煮1.5小時</pre>
             // 確保至少有基本資料
             if (!recipe.name) recipe.name = '未命名食譜';
             if (recipe.ingredients.length === 0) {
-                recipe.ingredients.push({ name: '', amount: '', unit: INGREDIENT_UNITS[0], customUnit: '', brand: '', tips: '' });
+                recipe.ingredients.push({ name: '', amount: '', unit: UNITS[0], customUnit: '', brand: '', tips: '' });
             }
             if (recipe.seasonings.length === 0) {
-                recipe.seasonings.push({ name: '', amount: '', unit: SEASONING_UNITS[0], customUnit: '', brand: '', tips: '' });
+                recipe.seasonings.push({ name: '', amount: '', unit: UNITS[0], customUnit: '', brand: '', tips: '' });
             }
             if (recipe.steps.length === 0) {
                 recipe.steps.push({ text: '', tips: '' });
@@ -3288,6 +3730,545 @@ Step4: 加水燉煮1.5小時</pre>
             
             alert('食譜已成功儲存到食譜庫！');
             setView('recipes');
+        }
+
+        // ============================================
+        // Google Sheets 雲端同步功能
+        // ============================================
+        
+        // 測試連線
+        async function testSyncConnection() {
+            const apiUrl = document.getElementById('sync-api-url').value.trim();
+            
+            if (!apiUrl) {
+                alert('請輸入 API 連結！');
+                return;
+            }
+            
+            if (!apiUrl.includes('script.google.com')) {
+                alert('API 連結格式不正確！\n應該是 https://script.google.com/macros/s/.../exec');
+                return;
+            }
+            
+            const statusDiv = document.getElementById('sync-status');
+            statusDiv.style.display = 'block';
+            statusDiv.textContent = '🔍 測試連線中...';
+            statusDiv.style.color = '#666';
+            
+            try {
+                console.log('測試連線 URL:', `${apiUrl}?action=ping`);
+                
+                const response = await fetch(`${apiUrl}?action=ping`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
+                
+                console.log('測試連線回應:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('測試連線資料:', data);
+                
+                if (data.status === 'ok') {
+                    state.syncSettings.apiUrl = apiUrl;
+                    state.syncSettings.enabled = true;
+                    localStorage.setItem('foodie-sync-settings', JSON.stringify(state.syncSettings));
+                    
+                    statusDiv.textContent = '✅ 連線成功！可以開始同步了';
+                    statusDiv.style.color = '#10b981';
+                    
+                    setTimeout(() => renderCurrentView(), 2000);
+                } else {
+                    throw new Error('API 回應格式異常');
+                }
+            } catch (error) {
+                console.error('測試連線錯誤:', error);
+                
+                let errorMsg = '❌ 連線失敗：';
+                
+                if (error.message.includes('Failed to fetch')) {
+                    errorMsg += '無法連接（請檢查網路或 CORS 設定）';
+                } else {
+                    errorMsg += error.message;
+                }
+                
+                statusDiv.textContent = errorMsg;
+                statusDiv.style.color = '#ef4444';
+                
+                // 添加說明按鈕
+                const helpBtn = document.createElement('button');
+                helpBtn.textContent = '查看解決方案';
+                helpBtn.className = 'btn btn-outline text-sm mt-2';
+                helpBtn.style.padding = '0.5rem 1rem';
+                helpBtn.onclick = () => {
+                    alert(
+                        '連線失敗可能的原因：\n\n' +
+                        '1. Apps Script 尚未部署\n' +
+                        '2. 權限設定錯誤（必須設為「任何人」）\n' +
+                        '3. URL 複製不完整\n' +
+                        '4. Google Sheets 試算表未建立\n\n' +
+                        '解決步驟：\n' +
+                        '1. 確認已完成 Apps Script 部署\n' +
+                        '2. 檢查「誰可以存取」設定為「任何人」\n' +
+                        '3. 重新複製完整的 URL\n' +
+                        '4. 在瀏覽器中直接開啟 URL 測試\n\n' +
+                        '詳情請參考 GOOGLE_SHEETS_SETUP.md'
+                    );
+                };
+                statusDiv.appendChild(document.createElement('br'));
+                statusDiv.appendChild(helpBtn);
+            }
+        }
+        
+        // 同步到雲端
+        async function syncToCloud() {
+            if (!state.syncSettings.enabled) {
+                alert('請先設定並測試 API 連線！');
+                return;
+            }
+            
+            const statusDiv = document.getElementById('sync-status');
+            if (statusDiv) {
+                statusDiv.style.display = 'block';
+                statusDiv.textContent = '☁️ 正在同步到雲端...';
+                statusDiv.style.color = '#3b82f6';
+            }
+            
+            try {
+                console.log('開始同步...');
+                console.log('API URL:', state.syncSettings.apiUrl);
+                console.log('本地資料數量 - 食材:', state.ingredients.length, '食譜:', state.recipes.length);
+                
+                // 1. 先從雲端拉取最新資料
+                if (statusDiv) statusDiv.textContent = '☁️ 步驟 1/3：從雲端拉取資料...';
+                const cloudData = await fetchCloudData();
+                console.log('雲端資料數量 - 食材:', cloudData.ingredients?.length || 0, '食譜:', cloudData.recipes?.length || 0);
+                
+                // 2. 合併資料（樂觀鎖定）
+                if (statusDiv) statusDiv.textContent = '☁️ 步驟 2/3：合併資料...';
+                const conflicts = mergeData(cloudData);
+                
+                if (conflicts.length > 0) {
+                    console.log('發現衝突:', conflicts);
+                    // 有衝突，詢問使用者
+                    const useCloud = confirm(
+                        `發現 ${conflicts.length} 筆資料衝突！\n` +
+                        `可能是其他裝置也修改了相同的食材或食譜。\n\n` +
+                        `點擊「確定」使用雲端版本\n` +
+                        `點擊「取消」保留本地版本`
+                    );
+                    
+                    if (useCloud) {
+                        // 使用雲端版本
+                        conflicts.forEach(conflict => {
+                            if (conflict.type === 'ingredient') {
+                                const index = state.ingredients.findIndex(i => i.id === conflict.id);
+                                if (index !== -1) {
+                                    state.ingredients[index] = conflict.cloudVersion;
+                                }
+                            } else {
+                                const index = state.recipes.findIndex(r => r.id === conflict.id);
+                                if (index !== -1) {
+                                    state.recipes[index] = conflict.cloudVersion;
+                                }
+                            }
+                        });
+                    }
+                }
+                
+                // 3. 推送本地資料到雲端
+                if (statusDiv) statusDiv.textContent = '☁️ 步驟 3/3：推送到雲端...';
+                await pushToCloud();
+                console.log('推送完成');
+                
+                state.syncSettings.lastSync = Date.now();
+                localStorage.setItem('foodie-sync-settings', JSON.stringify(state.syncSettings));
+                
+                if (statusDiv) {
+                    statusDiv.textContent = '✅ 同步完成！';
+                    statusDiv.style.color = '#10b981';
+                    setTimeout(() => renderCurrentView(), 2000);
+                }
+                
+                console.log('同步成功！');
+                
+            } catch (error) {
+                console.error('同步失敗 - 詳細錯誤:', error);
+                console.error('錯誤堆疊:', error.stack);
+                
+                let errorMessage = '❌ 同步失敗：';
+                
+                if (error.message.includes('Failed to fetch')) {
+                    errorMessage += '無法連接到伺服器（網路問題或 CORS 錯誤）';
+                } else if (error.message.includes('NetworkError')) {
+                    errorMessage += '網路連線失敗';
+                } else if (error.message.includes('JSON')) {
+                    errorMessage += '資料格式錯誤';
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                if (statusDiv) {
+                    statusDiv.textContent = errorMessage;
+                    statusDiv.style.color = '#ef4444';
+                    
+                    // 添加詳細錯誤按鈕
+                    const detailBtn = document.createElement('button');
+                    detailBtn.textContent = '查看詳細錯誤';
+                    detailBtn.className = 'btn btn-outline text-sm mt-2';
+                    detailBtn.style.padding = '0.5rem 1rem';
+                    detailBtn.onclick = () => {
+                        alert(
+                            '詳細錯誤信息：\n\n' +
+                            error.message + '\n\n' +
+                            '可能的原因：\n' +
+                            '1. Google Sheets 試算表尚未建立\n' +
+                            '2. Apps Script 未正確設定\n' +
+                            '3. 權限設定錯誤（需設定為「任何人」）\n' +
+                            '4. 網路連線問題\n\n' +
+                            '請檢查瀏覽器 Console (F12) 獲取更多信息'
+                        );
+                    };
+                    statusDiv.appendChild(document.createElement('br'));
+                    statusDiv.appendChild(detailBtn);
+                }
+            }
+        }
+        
+        // 從雲端拉取資料
+        async function fetchCloudData() {
+            const since = state.syncSettings.lastSync || 0;
+            const url = `${state.syncSettings.apiUrl}?action=getAll&since=${since}`;
+            
+            console.log('拉取資料 URL:', url);
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
+                
+                console.log('拉取回應狀態:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.error('伺服器回應錯誤:', text);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('拉取的資料:', data);
+                
+                // 確保資料格式正確
+                if (!data || typeof data !== 'object') {
+                    throw new Error('API 回傳的資料格式不正確');
+                }
+                
+                // 確保有 ingredients 和 recipes 欄位
+                if (!data.ingredients) data.ingredients = [];
+                if (!data.recipes) data.recipes = [];
+                
+                return data;
+                
+            } catch (error) {
+                console.error('fetchCloudData 錯誤:', error);
+                throw new Error(`拉取資料失敗: ${error.message}`);
+            }
+        }
+        
+        // 合併資料（檢測衝突）
+        // 合併資料（改進版：支援刪除偵測）
+        function mergeData(cloudData) {
+            const conflicts = [];
+            const deletedItems = {
+                ingredients: [],
+                recipes: []
+            };
+            
+            // === 合併食材 ===
+            if (cloudData.ingredients) {
+                // 1. 更新或新增雲端的項目
+                cloudData.ingredients.forEach(cloudItem => {
+                    const localIndex = state.ingredients.findIndex(i => i.id === cloudItem.id);
+                    
+                    if (localIndex === -1) {
+                        // 本地沒有，從雲端加入
+                        console.log('從雲端加入食材:', cloudItem.name);
+                        state.ingredients.push(cloudItem);
+                    } else {
+                        const localItem = state.ingredients[localIndex];
+                        
+                        // 檢查版本衝突
+                        if (localItem.updatedAt && cloudItem.updatedAt && 
+                            localItem.updatedAt > state.syncSettings.lastSync &&
+                            cloudItem.updatedAt > state.syncSettings.lastSync &&
+                            localItem.deviceId !== cloudItem.deviceId) {
+                            // 衝突：兩邊都在上次同步後修改過
+                            console.log('偵測到食材衝突:', cloudItem.name);
+                            conflicts.push({
+                                type: 'ingredient',
+                                id: cloudItem.id,
+                                localVersion: localItem,
+                                cloudVersion: cloudItem
+                            });
+                        } else if (cloudItem.updatedAt > (localItem.updatedAt || 0)) {
+                            // 雲端較新，更新本地
+                            console.log('從雲端更新食材:', cloudItem.name);
+                            state.ingredients[localIndex] = cloudItem;
+                        }
+                    }
+                });
+                
+                // 2. 偵測本地有但雲端沒有的項目（可能在雲端被刪除）
+                state.ingredients.forEach(localItem => {
+                    const cloudExists = cloudData.ingredients.some(c => c.id === localItem.id);
+                    if (!cloudExists && localItem.updatedAt && localItem.updatedAt < state.syncSettings.lastSync) {
+                        // 本地項目在上次同步前就存在，但雲端沒有 = 在雲端被刪除
+                        console.log('偵測到食材在雲端被刪除:', localItem.name);
+                        deletedItems.ingredients.push(localItem);
+                    }
+                });
+            }
+            
+            // === 合併食譜 ===
+            if (cloudData.recipes) {
+                // 1. 更新或新增雲端的項目
+                cloudData.recipes.forEach(cloudItem => {
+                    const localIndex = state.recipes.findIndex(r => r.id === cloudItem.id);
+                    
+                    if (localIndex === -1) {
+                        console.log('從雲端加入食譜:', cloudItem.name);
+                        state.recipes.push(cloudItem);
+                    } else {
+                        const localItem = state.recipes[localIndex];
+                        
+                        if (localItem.updatedAt && cloudItem.updatedAt && 
+                            localItem.updatedAt > state.syncSettings.lastSync &&
+                            cloudItem.updatedAt > state.syncSettings.lastSync &&
+                            localItem.deviceId !== cloudItem.deviceId) {
+                            console.log('偵測到食譜衝突:', cloudItem.name);
+                            conflicts.push({
+                                type: 'recipe',
+                                id: cloudItem.id,
+                                localVersion: localItem,
+                                cloudVersion: cloudItem
+                            });
+                        } else if (cloudItem.updatedAt > (localItem.updatedAt || 0)) {
+                            console.log('從雲端更新食譜:', cloudItem.name);
+                            state.recipes[localIndex] = cloudItem;
+                        }
+                    }
+                });
+                
+                // 2. 偵測本地有但雲端沒有的項目
+                state.recipes.forEach(localItem => {
+                    const cloudExists = cloudData.recipes.some(c => c.id === localItem.id);
+                    if (!cloudExists && localItem.updatedAt && localItem.updatedAt < state.syncSettings.lastSync) {
+                        console.log('偵測到食譜在雲端被刪除:', localItem.name);
+                        deletedItems.recipes.push(localItem);
+                    }
+                });
+            }
+            
+            // === 處理刪除的項目 ===
+            if (deletedItems.ingredients.length > 0 || deletedItems.recipes.length > 0) {
+                handleDeletedItems(deletedItems);
+            }
+            
+            saveData();
+            return conflicts;
+        }
+        
+        // 處理在雲端被刪除的項目
+        function handleDeletedItems(deletedItems) {
+            const messages = [];
+            
+            if (deletedItems.ingredients.length > 0) {
+                messages.push(`${deletedItems.ingredients.length} 個食材在雲端被刪除`);
+            }
+            if (deletedItems.recipes.length > 0) {
+                messages.push(`${deletedItems.recipes.length} 個食譜在雲端被刪除`);
+            }
+            
+            if (messages.length > 0) {
+                const shouldDelete = confirm(
+                    `偵測到以下項目在 Google Sheets 中已被刪除：\n\n` +
+                    messages.join('\n') +
+                    `\n\n是否同步刪除本地資料？\n\n` +
+                    `[確定] 刪除本地資料（與雲端保持一致）\n` +
+                    `[取消] 保留本地資料（將重新上傳到雲端）`
+                );
+                
+                if (shouldDelete) {
+                    // 刪除本地資料
+                    deletedItems.ingredients.forEach(item => {
+                        const index = state.ingredients.findIndex(i => i.id === item.id);
+                        if (index !== -1) {
+                            state.ingredients.splice(index, 1);
+                            console.log('已刪除本地食材:', item.name);
+                        }
+                    });
+                    
+                    deletedItems.recipes.forEach(item => {
+                        const index = state.recipes.findIndex(r => r.id === item.id);
+                        if (index !== -1) {
+                            state.recipes.splice(index, 1);
+                            console.log('已刪除本地食譜:', item.name);
+                        }
+                    });
+                    
+                    alert('已同步刪除本地資料！');
+                } else {
+                    alert('已保留本地資料，這些項目將在下次同步時重新上傳到雲端。');
+                }
+            }
+        }
+        
+        // 推送到雲端（使用 GET 避免 CORS 問題）
+        async function pushToCloud() {
+            console.log('推送資料...');
+            console.log('資料數量 - 食材:', state.ingredients.length, '食譜:', state.recipes.length);
+            
+            try {
+                const payload = {
+                    ingredients: state.ingredients,
+                    recipes: state.recipes
+                };
+                
+                // 將資料轉為 JSON 字串並編碼
+                const dataString = JSON.stringify(payload);
+                const encodedData = encodeURIComponent(dataString);
+                
+                // 檢查 URL 長度（避免超過限制）
+                const url = `${state.syncSettings.apiUrl}?action=saveAll&data=${encodedData}`;
+                
+                if (url.length > 8000) {
+                    console.warn('資料量較大，URL 長度:', url.length);
+                    // 如果資料太大，嘗試分批上傳
+                    return await pushToCloudBatch();
+                }
+                
+                console.log('使用 GET 方式推送，URL 長度:', url.length);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    cache: 'no-cache'
+                });
+                
+                console.log('推送回應狀態:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.error('推送失敗回應:', text);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('推送回應資料:', data);
+                
+                if (data.status === 'ok') {
+                    return data;
+                } else {
+                    throw new Error(data.message || '推送失敗');
+                }
+                
+            } catch (error) {
+                console.error('pushToCloud 錯誤:', error);
+                throw new Error(`推送資料失敗: ${error.message}`);
+            }
+        }
+        
+        // 分批推送（如果資料量太大）
+        async function pushToCloudBatch() {
+            console.log('資料量較大，使用分批推送');
+            
+            // 先推送食材
+            if (state.ingredients.length > 0) {
+                const ingredientsData = JSON.stringify({ ingredients: state.ingredients, recipes: [] });
+                const encodedIngredients = encodeURIComponent(ingredientsData);
+                const ingredientsUrl = `${state.syncSettings.apiUrl}?action=saveAll&data=${encodedIngredients}`;
+                
+                console.log('推送食材...');
+                const response1 = await fetch(ingredientsUrl, { method: 'GET' });
+                if (!response1.ok) throw new Error('推送食材失敗');
+            }
+            
+            // 再推送食譜
+            if (state.recipes.length > 0) {
+                const recipesData = JSON.stringify({ ingredients: [], recipes: state.recipes });
+                const encodedRecipes = encodeURIComponent(recipesData);
+                const recipesUrl = `${state.syncSettings.apiUrl}?action=saveAll&data=${encodedRecipes}`;
+                
+                console.log('推送食譜...');
+                const response2 = await fetch(recipesUrl, { method: 'GET' });
+                if (!response2.ok) throw new Error('推送食譜失敗');
+                
+                const data = await response2.json();
+                return data;
+            }
+            
+            return { status: 'ok', timestamp: Date.now() };
+        }
+        
+        // 切換自動同步
+        function toggleAutoSync(enabled) {
+            state.syncSettings.autoSync = enabled;
+            localStorage.setItem('foodie-sync-settings', JSON.stringify(state.syncSettings));
+            renderCurrentView();
+            
+            if (enabled) {
+                startAutoSync();
+            } else {
+                stopAutoSync();
+            }
+        }
+        
+        // 更新同步間隔
+        function updateSyncInterval(minutes) {
+            state.syncSettings.syncInterval = parseInt(minutes);
+            localStorage.setItem('foodie-sync-settings', JSON.stringify(state.syncSettings));
+            
+            if (state.syncSettings.autoSync) {
+                stopAutoSync();
+                startAutoSync();
+            }
+        }
+        
+        // 自動同步計時器
+        let autoSyncTimer = null;
+        
+        function startAutoSync() {
+            if (autoSyncTimer) clearInterval(autoSyncTimer);
+            
+            const interval = state.syncSettings.syncInterval * 60 * 1000; // 轉換為毫秒
+            autoSyncTimer = setInterval(() => {
+                syncToCloud();
+            }, interval);
+        }
+        
+        function stopAutoSync() {
+            if (autoSyncTimer) {
+                clearInterval(autoSyncTimer);
+                autoSyncTimer = null;
+            }
+        }
+        
+        // 顯示設定教學
+        function showSyncTutorial() {
+            alert(
+                '📖 Google Sheets 同步設定教學\n\n' +
+                '請參考以下步驟：\n' +
+                '1. 建立 Google Sheets 試算表\n' +
+                '2. 設定 Google Apps Script\n' +
+                '3. 部署為網路應用程式\n' +
+                '4. 將 API URL 貼到這裡\n\n' +
+                '詳細教學請參考 GOOGLE_SHEETS_SETUP.md 文件'
+            );
         }
 
         // 頁面載入時初始化
